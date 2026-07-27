@@ -1,0 +1,1213 @@
+// ============================================================
+// ?????: fee.c
+// ????: ????????? (???????????????¨¢???????)
+//       ????????????????????????????????????????????
+//       ?????????????????????????????
+// ??????????? 
+// ============================================================
+
+#include "his.h"
+
+// ??????????????????????????ID?????ID
+static int getNextFeeId(void);
+static int getNextPaymentId(void);
+
+// ???????????????? - ??????????????????????????
+static void applyPatientCredit(int patientId) {
+    float totalPaid = 0;
+    Payment* pay = paymentHead;
+    while (pay) {
+        if (pay->patientId == patientId) totalPaid += pay->amount;
+        pay = pay->next;
+    }
+
+    float paidFee = 0;
+    PatientFee* pf = patientFeeHead;
+    while (pf) {
+        if (pf->patientId == patientId && pf->status == 1)
+            paidFee += pf->totalAmount;
+        pf = pf->next;
+    }
+
+    float credit = totalPaid - paidFee;   // ?????????
+    if (credit <= 0) return;
+
+    // ?????????¦Ã???¦Ä??????????????????????
+    pf = patientFeeHead;
+    while (pf && credit > 0) {
+        if (pf->patientId == patientId && pf->status == 0) {
+            if (credit >= pf->totalAmount) {
+                credit -= pf->totalAmount;
+                pf->status = 1;
+            } else break;   // ?????????????????????????????
+        }
+        pf = pf->next;
+    }
+}
+// ???????????????????????????????????
+static void verifyAndFixFeeStatus(int patientId) {
+    // 1. ???????????????
+    float totalPaid = 0;
+    Payment* pay = paymentHead;
+    while (pay) {
+        if (pay->patientId == patientId) {
+            totalPaid += pay->amount;
+        }
+        pay = pay->next;
+    }
+    
+    // 2. ?????????????????
+    float paidFee = 0;
+    PatientFee* pf = patientFeeHead;
+    while (pf) {
+        if (pf->patientId == patientId && pf->status == 1) {
+            paidFee += pf->totalAmount;
+        }
+        pf = pf->next;
+    }
+    
+    // 3. ???????
+    float credit = totalPaid - paidFee;
+    
+    if (credit <= 0) return;  // ??§á??????
+    
+    // 4. ???????????¦Ä??????
+    pf = patientFeeHead;
+    while (pf && credit > 0) {
+        if (pf->patientId == patientId && pf->status == 0) {
+            if (credit >= pf->totalAmount) {
+                // ?????????????????
+                credit -= pf->totalAmount;
+                pf->status = 1;  // ?????????
+            } else {
+                // ?????????????????????§³?????
+            }
+        }
+        pf = pf->next;
+    }
+}
+// ????????????????? data.c ?§Ø??‰Î
+extern FeeItem* feeItemHead;
+extern PatientFee* patientFeeHead;
+extern Payment* paymentHead;
+
+// ======================= ??????????? =======================
+
+// ??????addFeeItem
+// ??????????????????????????CT???????¦Ë????
+// ?????
+//   1. ???????????
+//   2. ????ID???????????????
+//   3. ???ID¦·??????????????????
+//   4. ???????????
+void addFeeItem() {
+    clearScreen();
+    drawModernBox(20, 5, 45, 12, " ?? ?? ?? ?? ?? ? ");
+    FeeItem* item = (FeeItem*)malloc(sizeof(FeeItem));
+    gotoxy(25, 8);  printf("???????ID: "); scanf("%d", &item->id);
+    if (findFeeItemById(item->id) != NULL) {
+        setColor(COLOR_ERROR);
+        gotoxy(25, 10); printf("???????ID??????");
+        setColor(COLOR_DEFAULT);
+        free(item);
+        pressAnyKey();
+        return;
+    }
+    gotoxy(25, 10); printf("???????: "); safeInput(item->name, 20, 35, 10);
+    gotoxy(25, 12); printf("????: "); scanf("%f", &item->price);          // ?????????float
+    gotoxy(25, 14); printf("???(????/???/??/????/????): "); safeInput(item->category, 10, 56, 14);
+    item->next = feeItemHead;
+    feeItemHead = item;
+    setColor(COLOR_SUCCESS);
+    gotoxy(25, 16); printf("???????????????");
+    setColor(COLOR_DEFAULT);
+    pressAnyKey();
+}
+
+// ??????listFeeItems
+// ??????????????§Ô????§Ù??????
+void listFeeItems() {
+    clearScreen();
+    setColor(COLOR_TITLE);
+    printf("\n  ==================== ?? ?? ?? ? ?? ?? ====================\n\n");
+    setColor(COLOR_DEFAULT);
+    FeeItem* item = feeItemHead;
+    if (!item) {
+        printf("  ???????????????\n");
+        pressAnyKey();
+        return;
+    }
+    const char* headers[] = {"ID", "???????", "????", "???"};
+    int widths[] = {6, 22, 10, 14};
+    printTableHeader(headers, widths, 4);
+    int row = 0;
+    while (item) {
+        char idStr[10], priceStr[15];
+        sprintf(idStr, "%d", item->id);
+        sprintf(priceStr, "%.2f", item->price);
+        const char* values[] = {idStr, item->name, priceStr, item->category};
+        printTableRow(values, widths, 4, (row % 2 == 0) ? COLOR_ROW_EVEN : COLOR_ROW_ODD);
+        item = item->next;
+        row++;
+    }
+    pressAnyKey();
+}
+
+// ??????updateFeeItem
+// ???????????ID???????????????????????
+void updateFeeItem() {
+    clearScreen();
+    drawModernBox(20, 5, 45, 12, " ?? ?? ?? ?? ?? ? ");
+    int id;
+    gotoxy(25, 8); printf("?????????????????ID: "); scanf("%d", &id);
+    FeeItem* item = findFeeItemById(id);
+    if (!item) {
+        setColor(COLOR_ERROR);
+        gotoxy(25, 10); printf("??????????????");
+        setColor(COLOR_DEFAULT);
+        pressAnyKey();
+        return;
+    }
+    char buffer[MAX_NAME_LEN];
+    gotoxy(25, 10); printf("??????????: %s", item->name);
+    gotoxy(25, 12); printf("????????????(?????????): ");
+    getchar();
+    fgets(buffer, MAX_NAME_LEN, stdin);
+    buffer[strcspn(buffer, "\n")] = 0;
+    if (strlen(buffer) > 0) strcpy(item->name, buffer);
+    
+    gotoxy(25, 14); printf("???????: %.2f?????????????: ", item->price);
+    float newPrice;
+    scanf("%f", &newPrice);
+    if (newPrice > 0) item->price = newPrice;
+    
+    gotoxy(25, 16); printf("??????: %s?????????????: ", item->category);
+    safeInput(buffer, 10, 56, 16);
+    if (strlen(buffer) > 0) strcpy(item->category, buffer);
+    
+    setColor(COLOR_SUCCESS);
+    gotoxy(25, 18); printf("??????????????");
+    setColor(COLOR_DEFAULT);
+    pressAnyKey();
+}
+
+// ??????deleteFeeItem
+// ??????????????????????????????????
+void deleteFeeItem() {
+    clearScreen();
+    drawModernBox(20, 5, 45, 8, " ? ?? ?? ?? ?? ? ");
+    int id;
+    gotoxy(25, 8); printf("??????????????????ID: "); scanf("%d", &id);
+    FeeItem *item = feeItemHead, *prev = NULL;
+    while (item) {
+        if (item->id == id) {
+            if (prev) prev->next = item->next;
+            else feeItemHead = item->next;
+            free(item);
+            setColor(COLOR_SUCCESS);
+            gotoxy(25, 10); printf("??????????????");
+            setColor(COLOR_DEFAULT);
+            pressAnyKey();
+            return;
+        }
+        prev = item;
+        item = item->next;
+    }
+    setColor(COLOR_ERROR);
+    gotoxy(25, 10); printf("¦Ä????¡Â????????");
+    setColor(COLOR_DEFAULT);
+    pressAnyKey();
+}
+
+// ??????findFeeItemById
+// ?????????ID?????????????????????
+FeeItem* findFeeItemById(int id) {
+    FeeItem* item = feeItemHead;
+    while (item) {
+        if (item->id == id) return item;
+        item = item->next;
+    }
+    return NULL;
+}
+
+// ======================= ??????¨´??? =======================
+
+// ?????????getNextFeeId
+// ?????????????????????????????ID????1?????ID
+static int getNextFeeId() {
+    int maxId = 0;
+    PatientFee* pf = patientFeeHead;
+    while (pf) {
+        if (pf->id > maxId) maxId = pf->id;
+        pf = pf->next;
+    }
+    return maxId + 1;
+}
+
+// ??????addPatientFee
+// ????????????????????????????????????????????
+// ?????
+//   1. ??????ID??§µ????????
+//   2. ???????????§Ò?????????
+//   3. ??????????????????????¨¹????????????
+//   4. ?????????????
+void addPatientFee() {
+    clearScreen();
+    drawModernBox(20, 5, 50, 14, " ?? ?? ?? ?? ?? ?? ");
+    int patientId;
+    gotoxy(25, 8);  printf("????????ID: "); scanf("%d", &patientId);
+    Patient* p = findPatientById(patientId);
+    if (!p) {
+        setColor(COLOR_ERROR);
+        gotoxy(25, 10); printf("??????????");
+        setColor(COLOR_DEFAULT);
+        pressAnyKey();
+        return;
+    }
+    
+    // ???????????????????????????????
+    int continueAdding = 1;
+    while (continueAdding) {
+        // ???????????§Ò???????
+        clearScreen();
+        // ?????????????§Ò??????????????
+        setColor(COLOR_TITLE);
+        printf("\n  ==================== ?? ?? ?? ? ?? ?? ====================\n\n");
+        setColor(COLOR_DEFAULT);
+        FeeItem* itemList = feeItemHead;
+        if (!itemList) {
+            printf("  ???????????????\n");
+        } else {
+            const char* headers[] = {"ID", "???????", "????", "???"};
+            int widths[] = {6, 22, 10, 14};
+            printTableHeader(headers, widths, 4);
+            int row = 0;
+            while (itemList) {
+                char idStr[10], priceStr[15];
+                sprintf(idStr, "%d", itemList->id);
+                sprintf(priceStr, "%.2f", itemList->price);
+                const char* values[] = {idStr, itemList->name, priceStr, itemList->category};
+                printTableRow(values, widths, 4, (row % 2 == 0) ? COLOR_ROW_EVEN : COLOR_ROW_ODD);
+                itemList = itemList->next;
+                row++;
+            }
+        }
+        
+        // ?????§Ò??????????????????????¦Ë??
+        int itemCount = 0;
+        FeeItem* countItem = feeItemHead;
+        while (countItem) {
+            itemCount++;
+            countItem = countItem->next;
+        }
+        
+        int inputStartRow;
+        if (itemCount == 0) {
+            inputStartRow = 8;  // ????????????????
+        } else {
+            // ????2?? + ???1?? + ?????? + ????1?? + ?????2??
+            inputStartRow = 5 + itemCount + 6;
+        }
+        
+        // ???§Ò??¡¤??????????
+        drawModernBox(20, inputStartRow, 50, 10, " ?? ?? ?? ?? ");
+        
+        PatientFee* fee = (PatientFee*)malloc(sizeof(PatientFee));
+        fee->id = getNextFeeId();
+        fee->patientId = patientId;
+        
+        gotoxy(25, inputStartRow + 3); 
+        printf("????????????ID: "); 
+        scanf("%d", &fee->feeItemId);
+        
+        FeeItem* item = findFeeItemById(fee->feeItemId);
+        if (!item) {
+            setColor(COLOR_ERROR);
+            gotoxy(25, inputStartRow + 5); 
+            printf("??????????????");
+            setColor(COLOR_DEFAULT);
+            free(fee);
+            pressAnyKey();
+            return;
+        }
+        
+        gotoxy(25, inputStartRow + 5); 
+        printf("??????????: "); 
+        scanf("%d", &fee->quantity);
+        
+        fee->unitPrice = item->price;               // ?????????????
+        fee->totalAmount = item->price * fee->quantity;
+        strcpy(fee->chargeTime, getCurrentTime());
+        fee->status = 0;                            // ???¦Ä???
+        
+        gotoxy(25, inputStartRow + 7); 
+        printf("?????????ID (????0): "); 
+        scanf("%d", &fee->recordId);
+        
+        fee->next = patientFeeHead;
+        patientFeeHead = fee;
+        
+        setColor(COLOR_SUCCESS);
+        gotoxy(25, inputStartRow + 9); 
+        printf("???????????????: %.2f", fee->totalAmount);
+        setColor(COLOR_DEFAULT);
+        
+        // ?????????????
+        gotoxy(25, inputStartRow + 11); 
+        printf("??????????????(1????/0???): ");
+        scanf("%d", &continueAdding);
+        
+        if (!continueAdding) {
+            // ????????????§Ù??????
+            clearScreen();
+            setColor(COLOR_TITLE);
+            printf("\n  ========== ???? %s (ID:%d) ??????? ==========\n\n", p->name, patientId);
+            setColor(COLOR_DEFAULT);
+            
+            float totalFee = 0, totalPaid = 0;
+            PatientFee* feeList = patientFeeHead;
+            while (feeList) {
+                if (feeList->patientId == patientId) {
+                    totalFee += feeList->totalAmount;
+                    if (feeList->status == 1) totalPaid += feeList->totalAmount;
+                }
+                feeList = feeList->next;
+            }
+            
+            printf("  ?????: %.2f\n", totalFee);
+            printf("  ?????: %.2f\n", totalPaid);
+            printf("  ¦Ä???: ");
+            if (totalFee - totalPaid > 0) {
+                setColor(COLOR_WARNING);
+                printf("%.2f\n", totalFee - totalPaid);
+            } else {
+                setColor(COLOR_SUCCESS);
+                printf("0.00\n");
+            }
+            setColor(COLOR_DEFAULT);
+            printf("\n  ????????????\n");
+            pressAnyKey();
+        }
+    }
+}
+
+// ??????addPrescriptionFee
+// ????????????ID??????????????
+//       ?????????§Ö???????????????????????????????????feeItemId=999??
+void addPrescriptionFee() {
+    clearScreen();
+    drawModernBox(20, 5, 45, 10, " ?? ?? ?? ?? ");
+    int prescriptionId;
+    gotoxy(25, 8); printf("????????ID: "); scanf("%d", &prescriptionId);
+    Prescription* pre = findPrescriptionById(prescriptionId);
+    if (!pre) {
+        setColor(COLOR_ERROR);
+        gotoxy(25, 10); printf("???????????");
+        setColor(COLOR_DEFAULT);
+        pressAnyKey();
+        return;
+    }
+    float totalPrice = 0;
+    PrescriptionItem* item = pre->items;
+    while (item) {
+        Medicine* med = findMedicineById(item->medicineId);
+        if (med) totalPrice += med->price * item->quantity;
+        item = item->next;
+    }
+    PatientFee* fee = (PatientFee*)malloc(sizeof(PatientFee));
+    fee->id = getNextFeeId();
+    fee->patientId = pre->patientId;
+    fee->feeItemId = 999;               // ????ID??????
+    fee->quantity = 1;
+    fee->unitPrice = totalPrice;
+    fee->totalAmount = totalPrice;
+    strcpy(fee->chargeTime, getCurrentTime());
+    fee->status = 0;
+    fee->recordId = pre->recordId;
+    fee->next = patientFeeHead;
+    patientFeeHead = fee;
+    setColor(COLOR_SUCCESS);
+    gotoxy(25, 12); printf("?????????????????: %.2f", totalPrice);
+    setColor(COLOR_DEFAULT);
+    pressAnyKey();
+}
+
+// ??????addWardFee
+// ?????????????????¦Ë??
+//       ?????????????????????????????????????????????
+//       ???????????¦Ë????????feeItemId=888??
+void addWardFee() {
+    clearScreen();
+    drawModernBox(20, 5, 45, 12, " ?? ¦Ë ?? ?? ");
+    int patientId, days;
+    gotoxy(25, 8); printf("????????ID: "); scanf("%d", &patientId);
+    Patient* p = findPatientById(patientId);
+    if (!p || p->type != 1) {
+        setColor(COLOR_ERROR);
+        gotoxy(25, 10); printf("???????????????????");
+        setColor(COLOR_DEFAULT);
+        pressAnyKey();
+        return;
+    }
+    gotoxy(25, 10); printf("????????????: "); scanf("%d", &days);
+    float bedFeePerDay = 50.0;          // ????????¦Ë
+    Ward* w = wardHead;
+    while (w) {
+        Bed* b = w->bedList;
+        while (b) {
+            if (b->bedId == p->bedId && b->status == 1) {
+                if (strcmp(w->type, "VIP") == 0) bedFeePerDay = 200.0;
+                else if (strcmp(w->type, "???") == 0) bedFeePerDay = 80.0;
+                break;
+            }
+            b = b->next;
+        }
+        w = w->next;
+    }
+    PatientFee* fee = (PatientFee*)malloc(sizeof(PatientFee));
+    fee->id = getNextFeeId();
+    fee->patientId = patientId;
+    fee->feeItemId = 888;               // ????ID????¦Ë??
+    fee->quantity = days;
+    fee->unitPrice = bedFeePerDay;
+    fee->totalAmount = bedFeePerDay * days;
+    strcpy(fee->chargeTime, getCurrentTime());
+    fee->status = 0;
+    fee->recordId = 0;
+    fee->next = patientFeeHead;
+    patientFeeHead = fee;
+    setColor(COLOR_SUCCESS);
+    gotoxy(25, 14); printf("??¦Ë?????????????: %d, ????: %.2f, ????: %.2f", days, bedFeePerDay, fee->totalAmount);
+    setColor(COLOR_DEFAULT);
+    pressAnyKey();
+}
+
+// ??????listPatientFees
+// ??????????????§Ô????§Ý?????¨¹??
+void listPatientFees() {
+    clearScreen();
+    setColor(COLOR_TITLE);
+    printf("\n  ==================== ?? ?? ?? ?? ?? ? ====================\n\n");
+    setColor(COLOR_DEFAULT);
+    PatientFee* fee = patientFeeHead;
+    if (!fee) {
+        printf("  ??????¨¹????\n");
+        pressAnyKey();
+        return;
+    }
+    const char* headers[] = {"ID", "????ID", "???????", "????", "????", "????", "??", "???"};
+    int widths[] = {5, 7, 14, 5, 8, 10, 7, 20};
+    printTableHeader(headers, widths, 8);
+    int row = 0;
+    while (fee) {
+        char idStr[8], pidStr[8], qtyStr[8], priceStr[12], totalStr[12];
+        sprintf(idStr, "%d", fee->id);
+        sprintf(pidStr, "%d", fee->patientId);
+        sprintf(qtyStr, "%d", fee->quantity);
+        sprintf(priceStr, "%.2f", fee->unitPrice);
+        sprintf(totalStr, "%.2f", fee->totalAmount);
+        char itemName[30];
+        if (fee->feeItemId == 888) strcpy(itemName, "??¦Ë??");
+        else if (fee->feeItemId == 999) strcpy(itemName, "????");
+        else {
+            FeeItem* item = findFeeItemById(fee->feeItemId);
+            if (item) strcpy(itemName, item->name);
+            else strcpy(itemName, "¦Ä?");
+        }
+        const char* statusStr = (fee->status == 0) ? "¦Ä???" : "?????";
+        const char* values[] = {idStr, pidStr, itemName, qtyStr, priceStr, totalStr, statusStr, fee->chargeTime};
+        int color = (row % 2 == 0) ? COLOR_ROW_EVEN : COLOR_ROW_ODD;
+        if (fee->status == 0) color = COLOR_WARNING;   // ¦Ä???????
+        printTableRow(values, widths, 8, color);
+        fee = fee->next;
+        row++;
+    }
+    pressAnyKey();
+}
+
+// ??????listFeesByPatient
+// ??????????????ID????????§Ù??¨¹????????????????¦Ä??????
+void listFeesByPatient() {
+    clearScreen();
+    drawModernBox(20, 5, 45, 8, " ?? ?? ?? ?? ? ?? ?? ");
+    int patientId;
+    gotoxy(25, 8); printf("????????ID: "); scanf("%d", &patientId);
+    verifyAndFixFeeStatus(patientId); 
+    Patient* p = findPatientById(patientId);
+    if (!p) {
+        setColor(COLOR_ERROR);
+        gotoxy(25, 10); printf("??????????");
+        setColor(COLOR_DEFAULT);
+        pressAnyKey();
+        return;
+    }
+    clearScreen();
+    setColor(COLOR_TITLE);
+    printf("\n  ========== ???? %s (ID:%d) ??????? ==========\n\n", p->name, patientId);
+    setColor(COLOR_DEFAULT);
+    const char* headers[] = {"ID", "???????", "????", "????", "????", "??", "???"};
+    int widths[] = {5, 16, 5, 8, 10, 7, 20};
+    printTableHeader(headers, widths, 7);
+    float totalUnpaid = 0, totalPaid = 0;
+    PatientFee* fee = patientFeeHead;
+    int row = 0;
+    while (fee) {
+        if (fee->patientId == patientId) {
+            char idStr[8], qtyStr[8], priceStr[12], totalStr[12];
+            sprintf(idStr, "%d", fee->id);
+            sprintf(qtyStr, "%d", fee->quantity);
+            sprintf(priceStr, "%.2f", fee->unitPrice);
+            sprintf(totalStr, "%.2f", fee->totalAmount);
+            char itemName[30];
+            if (fee->feeItemId == 888) strcpy(itemName, "??¦Ë??");
+            else if (fee->feeItemId == 999) strcpy(itemName, "????");
+            else {
+                FeeItem* item = findFeeItemById(fee->feeItemId);
+                if (item) strcpy(itemName, item->name);
+                else strcpy(itemName, "¦Ä?");
+            }
+            const char* statusStr = (fee->status == 0) ? "¦Ä???" : "?????";
+            const char* values[] = {idStr, itemName, qtyStr, priceStr, totalStr, statusStr, fee->chargeTime};
+            int color = (row % 2 == 0) ? COLOR_ROW_EVEN : COLOR_ROW_ODD;
+            if (fee->status == 0) color = COLOR_WARNING;
+            printTableRow(values, widths, 7, color);
+            if (fee->status == 0) totalUnpaid += fee->totalAmount;
+            else totalPaid += fee->totalAmount;
+            row++;
+        }
+        fee = fee->next;
+    }
+    printf("\n");
+    setColor(COLOR_TITLE);
+    printf("  ????????: %.2f    ¦Ä??????: ", totalPaid);
+    setColor(COLOR_ERROR);
+    printf("%.2f\n", totalUnpaid);
+    setColor(COLOR_DEFAULT);
+    pressAnyKey();
+}
+
+// ??????listUnpaidFeesByPatient
+// ????????????????????¦Ä???????
+void listUnpaidFeesByPatient() {
+    clearScreen();
+    drawModernBox(20, 5, 45, 8, " ?? ? ? ?? ?? ? ");
+    int patientId;
+    gotoxy(25, 8); printf("????????ID: "); scanf("%d", &patientId);
+    Patient* p = findPatientById(patientId);
+    if (!p) {
+        setColor(COLOR_ERROR);
+        gotoxy(25, 10); printf("??????????");
+        setColor(COLOR_DEFAULT);
+        pressAnyKey();
+        return;
+    }
+    clearScreen();
+    setColor(COLOR_TITLE);
+    printf("\n  ========== ???? %s (ID:%d) ¦Ä?????? ==========\n\n", p->name, patientId);
+    setColor(COLOR_DEFAULT);
+    const char* headers[] = {"ID", "???????", "????", "????", "????", "???"};
+    int widths[] = {5, 16, 5, 8, 10, 20};
+    printTableHeader(headers, widths, 6);
+    float totalUnpaid = 0;
+    PatientFee* fee = patientFeeHead;
+    int row = 0;
+    while (fee) {
+        if (fee->patientId == patientId && fee->status == 0) {
+            char idStr[8], qtyStr[8], priceStr[12], totalStr[12];
+            sprintf(idStr, "%d", fee->id);
+            sprintf(qtyStr, "%d", fee->quantity);
+            sprintf(priceStr, "%.2f", fee->unitPrice);
+            sprintf(totalStr, "%.2f", fee->totalAmount);
+            char itemName[30];
+            if (fee->feeItemId == 888) strcpy(itemName, "??¦Ë??");
+            else if (fee->feeItemId == 999) strcpy(itemName, "????");
+            else {
+                FeeItem* item = findFeeItemById(fee->feeItemId);
+                if (item) strcpy(itemName, item->name);
+                else strcpy(itemName, "¦Ä?");
+            }
+            const char* values[] = {idStr, itemName, qtyStr, priceStr, totalStr, fee->chargeTime};
+            printTableRow(values, widths, 6, (row % 2 == 0) ? COLOR_ROW_EVEN : COLOR_ROW_ODD);
+            totalUnpaid += fee->totalAmount;
+            row++;
+        }
+        fee = fee->next;
+    }
+    printf("\n");
+    setColor(COLOR_ERROR);
+    printf("  ??????: %.2f\n", totalUnpaid);
+    setColor(COLOR_DEFAULT);
+    pressAnyKey();
+}
+
+// ??????listUnpaidFeesByPatientId
+// ????????????ID?????¦Ä?????????????????????ID??
+void listUnpaidFeesByPatientId(int patientId) {
+    Patient* p = findPatientById(patientId);
+    if (!p) return;
+    printf("\n========== ???? %s (ID:%d) ¦Ä?????? ==========\n", p->name, patientId);
+    printf("ID\t???????\t????\t????\t????\t???\n");
+    float totalUnpaid = 0;
+    PatientFee* fee = patientFeeHead;
+    while (fee) {
+        if (fee->patientId == patientId && fee->status == 0) {
+            printf("%d\t", fee->id);
+            if (fee->feeItemId == 888) printf("??¦Ë??\t");
+            else if (fee->feeItemId == 999) printf("????\t");
+            else {
+                FeeItem* item = findFeeItemById(fee->feeItemId);
+                if (item) printf("%s\t", item->name);
+                else printf("¦Ä?\t");
+            }
+            printf("%d\t%.2f\t%.2f\t%s\n",
+                   fee->quantity, fee->unitPrice, fee->totalAmount,
+                   fee->chargeTime);
+            totalUnpaid += fee->totalAmount;
+        }
+        fee = fee->next;
+    }
+    printf("??????: %.2f\n", totalUnpaid);
+}
+
+// ======================= ?????? =======================
+
+// ?????????getNextPaymentId
+// ??????????????????????????????ID
+static int getNextPaymentId() {
+    int maxId = 0;
+    Payment* pay = paymentHead;
+    while (pay) {
+        if (pay->id > maxId) maxId = pay->id;
+        pay = pay->next;
+    }
+    return maxId + 1;
+}
+
+void makePayment() {
+    clearScreen();
+    drawModernBox(20, 5, 50, 16, " ?? ?? ?? ?? ");
+    int patientId;
+    gotoxy(25, 8); printf("????????ID: "); scanf("%d", &patientId);
+    Patient* p = findPatientById(patientId);
+    if (!p) {
+        setColor(COLOR_ERROR);
+        gotoxy(25, 10); printf("??????????");
+        setColor(COLOR_DEFAULT);
+        pressAnyKey();
+        return;
+    }
+
+    // ? ???????????
+    applyPatientCredit(patientId);
+
+    float totalUnpaid = 0;
+    PatientFee* fee = patientFeeHead;
+    while (fee) {
+        if (fee->patientId == patientId && fee->status == 0)
+            totalUnpaid += fee->totalAmount;
+        fee = fee->next;
+    }
+
+    if (totalUnpaid <= 0) {
+        setColor(COLOR_SUCCESS);
+        gotoxy(25, 10); printf("?????????????");
+        setColor(COLOR_DEFAULT);
+        pressAnyKey();
+        return;
+    }
+
+    gotoxy(25, 10); printf("?????????: %.2f", totalUnpaid);
+    gotoxy(25, 12); printf("?????: 1.???????  2.??????: ");
+    int choice;
+    scanf("%d", &choice);
+    float payAmount;
+    if (choice == 1) payAmount = totalUnpaid;
+    else {
+        gotoxy(25, 14); printf("??????????: "); scanf("%f", &payAmount);
+        if (payAmount > totalUnpaid) payAmount = totalUnpaid;
+    }
+    gotoxy(25, 16); printf("??????: 1.??? 2.??? 3.??? 4.?????: ");
+    int method;
+    scanf("%d", &method);
+    char methodStr[20];
+    switch(method) {
+        case 1: strcpy(methodStr, "???"); break;
+        case 2: strcpy(methodStr, "???"); break;
+        case 3: strcpy(methodStr, "???"); break;
+        case 4: strcpy(methodStr, "?????"); break;
+        default: strcpy(methodStr, "????");
+    }
+    Payment* payment = (Payment*)malloc(sizeof(Payment));
+    payment->id = getNextPaymentId();
+    payment->patientId = patientId;
+    payment->amount = payAmount;
+    strcpy(payment->paymentTime, getCurrentTime());
+    strcpy(payment->paymentMethod, methodStr);
+    gotoxy(25, 18); printf("???(???): ");
+    getchar();
+    fgets(payment->remark, MAX_DESC_LEN, stdin);
+    payment->remark[strcspn(payment->remark, "\n")] = 0;
+    payment->next = paymentHead;
+    paymentHead = payment;
+
+    // ????¦Í???????????
+ // ??????????????? makePayment ?????§µ?
+float remaining = payAmount;
+PatientFee* feeToUpdate = patientFeeHead;
+
+// ????ï“?????????????????
+while (feeToUpdate && remaining > 0) {
+    if (feeToUpdate->patientId == patientId && feeToUpdate->status == 0) {
+        if (remaining >= feeToUpdate->totalAmount) {
+            remaining -= feeToUpdate->totalAmount;
+            feeToUpdate->status = 1;
+        }
+        // ????????????????????????????
+    }
+    feeToUpdate = feeToUpdate->next;
+}
+
+// ?????????????????????????????§³????????
+if (remaining > 0) {
+    PatientFee* smallestUnpaid = NULL;
+    float smallestAmount = remaining + 1; // ????????????remaining???
+    
+    feeToUpdate = patientFeeHead;
+    while (feeToUpdate) {
+        if (feeToUpdate->patientId == patientId && 
+            feeToUpdate->status == 0 && 
+            feeToUpdate->totalAmount <= smallestAmount) {
+            smallestAmount = feeToUpdate->totalAmount;
+            smallestUnpaid = feeToUpdate;
+        }
+        feeToUpdate = feeToUpdate->next;
+    }
+    
+    // ????????§³??????????????????
+    if (smallestUnpaid && remaining >= smallestUnpaid->totalAmount) {
+        remaining -= smallestUnpaid->totalAmount;
+        smallestUnpaid->status = 1;
+    }
+    // remaining ?????"???????"??????¦Ä??????????
+}
+
+// ??????????
+applyPatientCredit(patientId);
+
+    clearScreen();
+    setColor(COLOR_SUCCESS);
+    printf("\n\n  ========== ??????? ==========\n");
+    printf("    ?????: %.2f\n", payAmount);
+    printf("    ??????: %s\n", payment->paymentTime);
+    printf("    ??????: %s\n", methodStr);
+    setColor(COLOR_DEFAULT);
+    pressAnyKey();
+}
+
+void makePaymentForPatient(int patientId) {
+    Patient* p = findPatientById(patientId);
+    if (!p) return;
+
+    applyPatientCredit(patientId);
+
+    float totalUnpaid = 0;
+    PatientFee* fee = patientFeeHead;
+    while (fee) {
+        if (fee->patientId == patientId && fee->status == 0)
+            totalUnpaid += fee->totalAmount;
+        fee = fee->next;
+    }
+
+    if (totalUnpaid <= 0) {
+        printf("\n?????????????\n");
+        return;
+    }
+
+    //printf("\n?????????: %.2f\n", totalUnpaid);
+    printf("?????????:\n1. ???????\n2. ??????\n?????: ");
+    int choice;
+    scanf("%d", &choice);
+    float payAmount;
+    if (choice == 1) payAmount = totalUnpaid;
+    else {
+        printf("??????????: ");
+        scanf("%f", &payAmount);
+        if (payAmount > totalUnpaid) payAmount = totalUnpaid;
+    }
+    printf("???????????:\n1. ???\n2. ???\n3. ???\n4. ?????\n");
+    int method;
+    scanf("%d", &method);
+    char methodStr[20];
+    switch(method) {
+        case 1: strcpy(methodStr, "???"); break;
+        case 2: strcpy(methodStr, "???"); break;
+        case 3: strcpy(methodStr, "???"); break;
+        case 4: strcpy(methodStr, "?????"); break;
+        default: strcpy(methodStr, "????");
+    }
+    Payment* payment = (Payment*)malloc(sizeof(Payment));
+    payment->id = getNextPaymentId();
+    payment->patientId = patientId;
+    payment->amount = payAmount;
+    strcpy(payment->paymentTime, getCurrentTime());
+    strcpy(payment->paymentMethod, methodStr);
+    printf("???????(???): ");
+    getchar();
+    fgets(payment->remark, MAX_DESC_LEN, stdin);
+    payment->remark[strcspn(payment->remark, "\n")] = 0;
+    payment->next = paymentHead;
+    paymentHead = payment;
+
+    float remaining = payAmount;
+    PatientFee* feeToUpdate = patientFeeHead;
+    while (feeToUpdate && remaining > 0) {
+        if (feeToUpdate->patientId == patientId && feeToUpdate->status == 0) {
+            if (remaining >= feeToUpdate->totalAmount) {
+                remaining -= feeToUpdate->totalAmount;
+                feeToUpdate->status = 1;
+            }
+        }
+        feeToUpdate = feeToUpdate->next;
+    }
+
+    // +++ ??????????????????????¦Ã?????? +++
+    applyPatientCredit(patientId);
+    // ++++++++++++++++++++++++++++++++++++++++++++
+
+    printf("\n???????\n?????: %.2f\n??????: %s\n??????: %s\n", payAmount, payment->paymentTime, methodStr);
+}
+
+// ??????listPayments
+// ??????§Ô????§ß????
+void listPayments() {
+    clearScreen();
+    setColor(COLOR_TITLE);
+    printf("\n  ==================== ?? ?? ?? ? ?? ?? ====================\n\n");
+    setColor(COLOR_DEFAULT);
+    Payment* pay = paymentHead;
+    if (!pay) {
+        printf("  ??????????\n");
+        pressAnyKey();
+        return;
+    }
+    const char* headers[] = {"ID", "????ID", "???", "??????", "??????", "???"};
+    int widths[] = {5, 7, 10, 10, 20, 20};
+    printTableHeader(headers, widths, 6);
+    int row = 0;
+    while (pay) {
+        char idStr[8], pidStr[8], amtStr[12];
+        sprintf(idStr, "%d", pay->id);
+        sprintf(pidStr, "%d", pay->patientId);
+        sprintf(amtStr, "%.2f", pay->amount);
+        const char* values[] = {idStr, pidStr, amtStr, pay->paymentMethod, pay->paymentTime, pay->remark};
+        printTableRow(values, widths, 6, (row % 2 == 0) ? COLOR_ROW_EVEN : COLOR_ROW_ODD);
+        pay = pay->next;
+        row++;
+    }
+    pressAnyKey();
+}
+
+// ??????listPaymentsByPatient
+// ??????????????????????????
+void listPaymentsByPatient() {
+    clearScreen();
+    drawModernBox(20, 5, 45, 8, " ?? ? ?? ?? ?? ? ");
+    int patientId;
+    gotoxy(25, 8); printf("????????ID: "); scanf("%d", &patientId);
+    Patient* p = findPatientById(patientId);
+    if (!p) {
+        setColor(COLOR_ERROR);
+        gotoxy(25, 10); printf("??????????");
+        setColor(COLOR_DEFAULT);
+        pressAnyKey();
+        return;
+    }
+    clearScreen();
+    setColor(COLOR_TITLE);
+    printf("\n  ========== ???? %s (ID:%d) ????? ==========\n\n", p->name, patientId);
+    setColor(COLOR_DEFAULT);
+    const char* headers[] = {"ID", "???", "??????", "??????", "???"};
+    int widths[] = {5, 10, 10, 20, 20};
+    printTableHeader(headers, widths, 5);
+    float totalPaid = 0;
+    Payment* pay = paymentHead;
+    int row = 0;
+    while (pay) {
+        if (pay->patientId == patientId) {
+            char idStr[8], amtStr[12];
+            sprintf(idStr, "%d", pay->id);
+            sprintf(amtStr, "%.2f", pay->amount);
+            const char* values[] = {idStr, amtStr, pay->paymentMethod, pay->paymentTime, pay->remark};
+            printTableRow(values, widths, 5, (row % 2 == 0) ? COLOR_ROW_EVEN : COLOR_ROW_ODD);
+            totalPaid += pay->amount;
+            row++;
+        }
+        pay = pay->next;
+    }
+    printf("\n");
+    setColor(COLOR_TITLE);
+    printf("  ????????: %.2f\n", totalPaid);
+    setColor(COLOR_DEFAULT);
+    pressAnyKey();
+}
+
+// ??????showPatientBalance
+// ????????????????????????¨¢????????????
+void showPatientBalance() {
+    clearScreen();
+    drawModernBox(20, 5, 45, 10, " ?? ?? ?? ?? ");
+    int patientId;
+    gotoxy(25, 8); printf("????????ID: "); scanf("%d", &patientId);
+     verifyAndFixFeeStatus(patientId); 
+    Patient* p = findPatientById(patientId);
+    if (!p) {
+        setColor(COLOR_ERROR);
+        gotoxy(25, 10); printf("??????????");
+        setColor(COLOR_DEFAULT);
+        pressAnyKey();
+        return;
+    }
+    float totalFee = 0, totalPaid = 0;
+    PatientFee* fee = patientFeeHead;
+    while (fee) {
+        if (fee->patientId == patientId) totalFee += fee->totalAmount;
+        fee = fee->next;
+    }
+    Payment* pay = paymentHead;
+    while (pay) {
+        if (pay->patientId == patientId) totalPaid += pay->amount;
+        pay = pay->next;
+    }
+    float balance = totalFee - totalPaid;
+    clearScreen();
+    setColor(COLOR_TITLE);
+    printf("\n  ========== ???? %s (ID:%d) ??????? ==========\n\n", p->name, patientId);
+    setColor(COLOR_DEFAULT);
+    printf("  ?????: %.2f\n", totalFee);
+    printf("  ????: %.2f\n", totalPaid);
+    printf("  ?????: ");
+    if (balance > 0) { setColor(COLOR_ERROR); printf("%.2f\n", balance); }
+    else if (balance < 0) { setColor(COLOR_SUCCESS); printf("?????? %.2f\n", -balance); }
+    else { setColor(COLOR_SUCCESS); printf("?????\n"); }
+    setColor(COLOR_DEFAULT);
+    pressAnyKey();
+}
+
+// ??????settlePatientAccount
+// ????????????
+//   1. ?????????????????????????¦Ë??
+//   2. ??????????????????
+//   3. ?????????¦Ë????????????????
+//   **???**?????¦Ä?????????§Ö????¦Ä????????????
+void settlePatientAccount() {
+    clearScreen();
+    drawModernBox(20, 5, 55, 18, " ?? ? ?? ?? ");
+    int patientId;
+    gotoxy(25, 8); printf("???????????????ID: "); scanf("%d", &patientId);
+    Patient* p = findPatientById(patientId);
+    if (!p) {
+        setColor(COLOR_ERROR);
+        gotoxy(25, 10); printf("??????????");
+        setColor(COLOR_DEFAULT);
+        pressAnyKey();
+        return;
+    }
+
+    if (p->type == 1) {
+        gotoxy(25, 10); printf("?????????????? (1??/0??): ");
+        int confirm;
+        scanf("%d", &confirm);
+        if (confirm == 1) {
+            int days;
+            gotoxy(25, 12); printf("????????????: "); scanf("%d", &days);
+            float bedFeePerDay = 50.0;
+            Ward* w = wardHead;
+            while (w) {
+                Bed* b = w->bedList;
+                while (b) {
+                    if (b->bedId == p->bedId && b->status == 1) {
+                        if (strcmp(w->type, "VIP") == 0) bedFeePerDay = 200.0;
+                        else if (strcmp(w->type, "???") == 0) bedFeePerDay = 80.0;
+                        break;
+                    }
+                    b = b->next;
+                }
+                w = w->next;
+            }
+            PatientFee* fee = (PatientFee*)malloc(sizeof(PatientFee));
+            fee->id = getNextFeeId();
+            fee->patientId = patientId;
+            fee->feeItemId = 888;
+            fee->quantity = days;
+            fee->unitPrice = bedFeePerDay;
+            fee->totalAmount = bedFeePerDay * days;
+            strcpy(fee->chargeTime, getCurrentTime());
+            fee->status = 0;
+            fee->recordId = 0;
+            fee->next = patientFeeHead;
+            patientFeeHead = fee;
+            setColor(COLOR_SUCCESS);
+            gotoxy(25, 14); printf("???????¦Ë??: %.2f", fee->totalAmount);
+            setColor(COLOR_DEFAULT);
+        }
+    }
+
+
+
+
+
+// ?????????????????? - ????
+float totalFee = 0;
+PatientFee* fee = patientFeeHead;
+while (fee) {
+    if (fee->patientId == patientId)
+        totalFee += fee->totalAmount;
+    fee = fee->next;
+}
+
+float totalPaid = 0;
+Payment* pay = paymentHead;
+while (pay) {
+    if (pay->patientId == patientId)
+        totalPaid += pay->amount;
+    pay = pay->next;
+}
+
+
+
+// ???? totalUnpaid ???? 25.50??35.50 - 10.00??
+// ????????
+
+
+
+// ?????? = ????? - ????
+float totalUnpaid = totalFee - totalPaid;
+if (totalUnpaid < 0) totalUnpaid = 0;  // ??????
+    if (totalUnpaid > 0) {
+        printf("\n?????????: %.2f\n", totalUnpaid);
+        makePaymentForPatient(patientId);
+        verifyAndFixFeeStatus(patientId);
+        float remainingUnpaid = 0;
+        fee = patientFeeHead;
+        while (fee) {
+            if (fee->patientId == patientId && fee->status == 0)
+                remainingUnpaid += fee->totalAmount;
+            fee = fee->next;
+        }
+        if (remainingUnpaid > 0) {
+            setColor(COLOR_ERROR);
+            printf("\n????: ???? %.2f ???¦Ä???‰Ç\n", remainingUnpaid);
+            setColor(COLOR_DEFAULT);
+        } else {
+            setColor(COLOR_SUCCESS);
+            printf("\n????????\n");
+            if (p->type == 1 && p->bedId > 0) {
+                freeBed(p->bedId);
+                p->bedId = 0;
+                p->type = 0;
+                printf("??????¦Ë????????????????\n");
+            }
+            setColor(COLOR_DEFAULT);
+        }
+    } else {
+        setColor(COLOR_WARNING);
+        printf("\n??????????????????\n");
+        setColor(COLOR_DEFAULT);
+    }
+    pressAnyKey();
+}
+
+// ??????printInvoice
+// ???????????????????????Ë???????
+
+void printInvoice() {
+    clearScreen();
+    drawModernBox(20, 5, 50, 8, " ?? ? ?? ? ");
+    int patientId;
+    gotoxy(25, 8); printf("????????ID: "); scanf("%d", &patientId);
+
+    
+    //  ===????????¡¤????? ===
+    // ???????????????§á??????
+    verifyAndFixFeeStatus(patientId);
+    // ================================
+    
+    Patient* p = findPatientById(patientId);
+    if (!p) {
+        setColor(COLOR_ERROR);
+        gotoxy(25, 10); printf("??????????");
+        setColor(COLOR_DEFAULT);
+        pressAnyKey();
+        return;
+    }
+
+    clearScreen();
+    setColor(COLOR_TITLE);
+    printf("\n  ?X?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?[\n");
+    printf("  ?U                   ??????????Ë                        ?U\n");
+    printf("  ?d?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?g\n");
+    setColor(COLOR_DEFAULT);
+
+    char genderStr[8];
+    if (p->gender == 'M' || p->gender == 'm') strcpy(genderStr, "??");
+    else if (p->gender == 'F' || p->gender == 'f') strcpy(genderStr, "?");
+    else strcpy(genderStr, "¦Ä?");
+
+    printf("  ?U  ??????????%-10s     ????ID??%-6d                   ?U\n", p->name, p->id);
+    printf("  ?U  ???%-4s          ????%-4d                                ?U\n", genderStr, p->age);
+    printf("  ?U  ?????????%-8s                                            ?U\n", p->type == 0 ? "????" : "??");
+    printf("  ?d?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?g\n");
+    printf("  ?U ???  ???????       ????   ????     ???     ??        ?U\n");
+    printf("  ?d?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?g\n");
+
+    PatientFee* feeArray[100];
+    int feeCount = 0;
+    PatientFee* fee = patientFeeHead;
+    while (fee) {
+        if (fee->patientId == patientId) feeArray[feeCount++] = fee;
+        fee = fee->next;
+    }
+
+    float total = 0, paid = 0;
+    if (feeCount == 0) {
+        printf("  ?U                  ??????¨¹??                            ?U\n");
+    } else {
+        for (int i = feeCount - 1; i >= 0; i--) {
+            fee = feeArray[i];
+            char itemName[20];
+            if (fee->feeItemId == 888) strcpy(itemName, "??¦Ë??");
+            else if (fee->feeItemId == 999) strcpy(itemName, "????");
+            else {
+                FeeItem* item = findFeeItemById(fee->feeItemId);
+                if (item) strcpy(itemName, item->name);
+                else strcpy(itemName, "????");
+            }
+            char statusStr[8];
+            strcpy(statusStr, fee->status == 0 ? "¦Ä??" : "???");
+            printf("  ?U %-4d  %-12s   %-4d  %7.2f  %7.2f   %-4s      ?U\n",
+                   feeCount - i, itemName, fee->quantity,
+                   fee->unitPrice, fee->totalAmount, statusStr);
+            total += fee->totalAmount;
+            if (fee->status == 1) paid += fee->totalAmount;
+        }
+    }
+            // ?????????????
+            float totalPayment = 0;
+            Payment* pay = paymentHead;
+            while (pay) {
+                if (pay->patientId == patientId) 
+                    totalPayment += pay->amount;
+                pay = pay->next;
+            }
+
+            float actualDue = total - totalPayment;
+            if (actualDue < 0) actualDue = 0;
+    printf("  ?d?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?g\n");
+    printf("  ?U  ???¨²???%-8.2f  ??????%-8.2f  ??????%-8.2f ?U\n", total, totalPayment, actualDue);
+    printf("  ?^?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?T?a\n");
+
+    setColor(COLOR_WARNING);
+    printf("\n  >>> ??????????? <<<");
+    setColor(COLOR_DEFAULT);
+    pressAnyKey();
+}
