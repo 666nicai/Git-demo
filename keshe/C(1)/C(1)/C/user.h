@@ -1,7 +1,6 @@
 // ============================================================
-// ÎÄ¼şÃû: user.h
-// ÃèÊö: ÓÃ»§¹ÜÀíÄ£¿é (×¢²á¡¢µÇÂ¼)
-//        UserRole ¶¨ÒåÒÑÒÆÖÁ his.h£¬´Ë´¦²»ÔÙÖØ¸´¶¨Òå
+// æ–‡ä»¶å: user.h
+// æè¿°: ç”¨æˆ·ç®¡ç†æ¨¡å— (æ³¨å†Œã€ç™»å½•)
 // ============================================================
 
 #ifndef USER_H
@@ -9,29 +8,36 @@
 
 #include "his.h"
 
-// ÓÃ»§½á¹¹Ìå£¨Ê¹ÓÃ his.h ÖĞ¶¨ÒåµÄ UserRole£©
+// ç”¨æˆ·è§’è‰²æšä¸¾
+typedef enum {
+    ROLE_ADMIN,
+    ROLE_DOCTOR,
+    ROLE_PATIENT
+} UserRole;
+
+// ç”¨æˆ·ç»“æ„ä½“
 typedef struct User {
-    int id;
+    int id;                 // ç”¨æˆ·å”¯ä¸€ID
     char username[MAX_NAME_LEN];
-    char password[65];      // SHA256 ¹şÏ£Öµ (64×Ö·û + '\0')
-    UserRole role;          // ½ÇÉ«ÀàĞÍÔÚ his.h ÖĞÒÑ¶¨Òå
-    int relatedId;
+    char password[65];      // SHA256 å“ˆå¸Œå€¼ (64å­—ç¬¦ + '\0')
+    UserRole role;
+    int relatedId;          // å…³è”çš„åŒ»ç”ŸIDæˆ–æ‚£è€…ID (0è¡¨ç¤ºä»…ç®¡ç†å‘˜)
     struct User* next;
 } User;
 
-// È«¾ÖÓÃ»§Á´±íÍ·Ö¸Õë
+// å…¨å±€ç”¨æˆ·é“¾è¡¨å¤´æŒ‡é’ˆ
 extern User* userHead;
 
-// ÓÃ»§¹ÜÀíº¯Êı
-void initDefaultUsers();
+// ç”¨æˆ·ç®¡ç†å‡½æ•°
+void initDefaultUsers();                // åˆå§‹åŒ–é»˜è®¤ç®¡ç†å‘˜è´¦æˆ·
 int registerUser(const char* username, const char* password, UserRole role, int relatedId);
 int loginUser(const char* username, const char* password, UserRole* outRole, int* outRelatedId);
 User* findUserByUsername(const char* username);
 
-// ¹şÏ£º¯Êı
+// å“ˆå¸Œå‡½æ•° (ç®€åŒ–ç‰ˆ SHA256ï¼Œå®é™…å¯è°ƒç”¨å¤–éƒ¨åº“)
 void sha256(const char* str, char outputBuffer[65]);
 
-// JSON Êä³öº¯Êı (ÃüÁîĞĞÄ£Ê½)
+// JSON è¾“å‡ºå‡½æ•° (å‘½ä»¤è¡Œæ¨¡å¼)
 void outputRegisterJson(const char* username, const char* password, int role, int relatedId);
 void outputLoginJson(const char* username, const char* password);
 

@@ -1,7 +1,6 @@
 // ============================================================
-// ÎÄ¼þÃû: report.c
-// ÃèÊö: Í³¼Æ±¨±íÄ£¿é£¨ÃÀ»¯°æ£©
-//       Ò½Éú¹¤×÷Á¿Í³¼ÆÖ§³Ö½öÏÔÊ¾µ±Ç°Ò½Éú
+// æ–‡ä»¶å: report.c
+// æè¿°: ç»Ÿè®¡æŠ¥è¡¨æ¨¡å—ï¼ˆç¾ŽåŒ–ç‰ˆï¼‰
 // ============================================================
 
 #include "his.h"
@@ -9,55 +8,38 @@
 void reportPatientStats() {
     clearScreen();
     setColor(COLOR_TITLE);
-    printf("\n  ==================== »¼ Õß Í³ ¼Æ ====================\n\n");
+    printf("\n  ==================== æ‚£ è€… ç»Ÿ è®¡ ====================\n\n");
     setColor(COLOR_DEFAULT);
     int total = 0, outpatient = 0, inpatient = 0, male=0, female=0;
     Patient* p = patientHead;
     while (p) {
-        total++;                          // ×Ü»¼ÕßÊý+1
-        if (p->type == 0) outpatient++;   // ÃÅÕï»¼ÕßÊý+1
-        else inpatient++;                 // ×¡Ôº»¼ÕßÊý+1
-        
-        if (p->gender == 'M') male++;     // ÄÐÐÔ»¼ÕßÊý+1
-        else female++;                    // Å®ÐÔ»¼ÕßÊý+1
+        total++;
+        if (p->type == 0) outpatient++;
+        else inpatient++;
+        if (p->gender == 'M') male++;
+        else female++;
         p = p->next;
     }
-    printf("  ×Ü»¼ÕßÊý: %d\n", total);
-    printf("  ÃÅÕï»¼Õß: %d\n", outpatient);
-    printf("  ×¡Ôº»¼Õß: %d\n", inpatient);
-    printf("  ÄÐÐÔ: %d\n", male);
-    printf("  Å®ÐÔ: %d\n", female);
+    printf("  æ€»æ‚£è€…æ•°: %d\n", total);
+    printf("  é—¨è¯Šæ‚£è€…: %d\n", outpatient);
+    printf("  ä½é™¢æ‚£è€…: %d\n", inpatient);
+    printf("  ç”·æ€§: %d\n", male);
+    printf("  å¥³æ€§: %d\n", female);
 }
 
 void reportDoctorWorkload() {
     clearScreen();
     setColor(COLOR_TITLE);
-    printf("\n  ==================== Ò½ Éú ¹¤ ×÷ Á¿ ====================\n\n");
+    printf("\n  ==================== åŒ» ç”Ÿ å·¥ ä½œ é‡ ====================\n\n");
     setColor(COLOR_DEFAULT);
     int workload[100] = {0};
     MedicalRecord* r = recordHead;
     while (r) {
-        if (strcmp(r->recordType, "¿´Õï") == 0 && r->doctorId >=1 && r->doctorId <= 100)
+        if (strcmp(r->recordType, "çœ‹è¯Š") == 0 && r->doctorId >=1 && r->doctorId <= 100)
             workload[r->doctorId-1]++;
         r = r->next;
     }
-
-    // Ò½Éú½ÇÉ«£ºÖ»ÏÔÊ¾×Ô¼ºµÄ¹¤×÷Á¿
-    if (currentUserRole == ROLE_DOCTOR) {
-        Doctor* doc = findDoctorById(currentDoctorId);
-        if (!doc) return;
-        const char* headers[] = {"Ò½ÉúID", "ÐÕÃû", "¿´Õï´ÎÊý"};
-        int widths[] = {8, 12, 10};
-        printTableHeader(headers, widths, 3);
-        char idStr[10], countStr[10];
-        sprintf(idStr, "%d", currentDoctorId);
-        sprintf(countStr, "%d", workload[currentDoctorId-1]);
-        const char* values[] = {idStr, doc->name, countStr};
-        printTableRow(values, widths, 3, COLOR_ROW_EVEN);
-        return;
-    }
-
-    const char* headers[] = {"Ò½ÉúID", "ÐÕÃû", "¿´Õï´ÎÊý"};
+    const char* headers[] = {"åŒ»ç”ŸID", "å§“å", "çœ‹è¯Šæ¬¡æ•°"};
     int widths[] = {8, 12, 10};
     printTableHeader(headers, widths, 3);
     Doctor* d = doctorHead;
@@ -81,16 +63,16 @@ void reportDoctorWorkload() {
 void reportDeptStats() {
     clearScreen();
     setColor(COLOR_TITLE);
-    printf("\n  ==================== ¿Æ ÊÒ ¾Í Õï Í³ ¼Æ ====================\n\n");
+    printf("\n  ==================== ç§‘ å®¤ å°± è¯Š ç»Ÿ è®¡ ====================\n\n");
     setColor(COLOR_DEFAULT);
     int deptCount[10] = {0};
     MedicalRecord* r = recordHead;
     while (r) {
         Doctor* d = findDoctorById(r->doctorId);
-        if (d) deptCount[d->deptId-1]++;   // ¶ÔÓ¦¿ÆÊÒ¾ÍÕï´ÎÊý+1
+        if (d) deptCount[d->deptId-1]++;
         r = r->next;
     }
-    const char* headers[] = {"¿ÆÊÒID", "¿ÆÊÒÃû³Æ", "¾ÍÕï´ÎÊý"};
+    const char* headers[] = {"ç§‘å®¤ID", "ç§‘å®¤åç§°", "å°±è¯Šæ¬¡æ•°"};
     int widths[] = {8, 15, 10};
     printTableHeader(headers, widths, 3);
     Department* dept = deptHead;
@@ -116,9 +98,9 @@ void reportDeptStats() {
 void reportMedicineStock() {
     clearScreen();
     setColor(COLOR_TITLE);
-    printf("\n  ==================== Ò© Æ· ¿â ´æ ±¨ ±í ====================\n\n");
+    printf("\n  ==================== è¯ å“ åº“ å­˜ æŠ¥ è¡¨ ====================\n\n");
     setColor(COLOR_DEFAULT);
-    const char* headers[] = {"ID", "Í¨ÓÃÃû", "¿â´æ", "×´Ì¬"};
+    const char* headers[] = {"ID", "é€šç”¨å", "åº“å­˜", "çŠ¶æ€"};
     int widths[] = {6, 15, 8, 10};
     printTableHeader(headers, widths, 4);
     Medicine* m = medicineHead;
@@ -129,7 +111,7 @@ void reportMedicineStock() {
         char idStr[10], stockStr[10];
         sprintf(idStr, "%d", tail->id);
         sprintf(stockStr, "%d", tail->stock);
-        const char* status = (tail->stock < 20) ? "¿â´æ²»×ã" : "Õý³£";
+        const char* status = (tail->stock < 20) ? "åº“å­˜ä¸è¶³" : "æ­£å¸¸";
         const char* values[] = {idStr, tail->commonName, stockStr, status};
         int color = (row % 2 == 0) ? COLOR_ROW_EVEN : COLOR_ROW_ODD;
         if (tail->stock < 20) color = COLOR_WARNING;
@@ -147,46 +129,34 @@ void reportMedicineStock() {
 void reportWardUtilization() {
     clearScreen();
     setColor(COLOR_TITLE);
-    printf("\n  ==================== ²¡ ·¿ Àû ÓÃ ÂÊ ====================\n\n");
+    printf("\n  ==================== ç—… æˆ¿ åˆ© ç”¨ çŽ‡ ====================\n\n");
     setColor(COLOR_DEFAULT);
-    
-    const char* headers[] = {"²¡·¿ID", "ÀàÐÍ", "×Ü´²Î»", "ÒÑÓÃ", "ÀûÓÃÂÊ"};
+    const char* headers[] = {"ç—…æˆ¿ID", "ç±»åž‹", "æ€»åºŠä½", "å·²ç”¨", "åˆ©ç”¨çŽ‡"};
     int widths[] = {8, 12, 8, 6, 10};
     printTableHeader(headers, widths, 5);
-    
-    // ¸Ä³É´ÓÇ°Íùºó±éÀú£¬ÓÃ next Ö¸Õë
     Ward* w = wardHead;
+    Ward* tail = w;
     int row = 0;
-    
-    while (w != NULL) {
-        // Í³¼ÆÒÑÓÃ´²Î»Êý
+    while (tail) {
         int used = 0;
-        Bed* b = w->bedList;
-        while (b != NULL) {
-            if (b->status == 1) used++;
-            b = b->next;
-        }
-        
-        // ¼ÆËãÀûÓÃÂÊ
-        float rate = (w->totalBeds > 0) ? (used * 100.0 / w->totalBeds) : 0;
-        
-        // ¸ñÊ½»¯×Ö·û´®
+        Bed* b = tail->bedList;
+        while (b) { if (b->status == 1) used++; b = b->next; }
+        float rate = (tail->totalBeds > 0) ? (used*100.0/tail->totalBeds) : 0;
         char idStr[10], totalStr[10], usedStr[10], rateStr[15];
-        sprintf(idStr, "%d", w->id);
-        sprintf(totalStr, "%d", w->totalBeds);
+        sprintf(idStr, "%d", tail->id);
+        sprintf(totalStr, "%d", tail->totalBeds);
         sprintf(usedStr, "%d", used);
         sprintf(rateStr, "%.1f%%", rate);
-        
-        const char* values[] = {idStr, w->type, totalStr, usedStr, rateStr};
-        
-        // ÉèÖÃÐÐÑÕÉ«
+        const char* values[] = {idStr, tail->type, totalStr, usedStr, rateStr};
         int color = (row % 2 == 0) ? COLOR_ROW_EVEN : COLOR_ROW_ODD;
         if (rate >= 90) color = COLOR_WARNING;
-        
         printTableRow(values, widths, 5, color);
-        
-        // ÒÆ¶¯µ½ÏÂÒ»¸ö²¡·¿
-        w = w->next;
+        Ward* prev = wardHead;
+        if(prev == tail) break;
+        while(prev->next!=tail){
+            prev=prev->next;
+        }
+        tail = prev;
         row++;
     }
 }
@@ -199,22 +169,22 @@ void reportComprehensive() {
 
 void reportPatientView() {
     clearScreen();
-    drawModernBox(25, 5, 50, 8, " »¼ Õß ²¡ Àú ²é Ñ¯ ");
+    drawModernBox(25, 5, 50, 8, " æ‚£ è€… ç—… åŽ† æŸ¥ è¯¢ ");
     int pid;
-    gotoxy(30, 8); printf("ÇëÊäÈë»¼ÕßID: "); scanf("%d", &pid);
+    gotoxy(30, 8); printf("è¯·è¾“å…¥æ‚£è€…ID: "); scanf("%d", &pid);
     Patient* p = findPatientById(pid);
-    if (!p) { setColor(COLOR_ERROR); gotoxy(30, 10); printf("»¼Õß²»´æÔÚ¡£"); setColor(COLOR_DEFAULT); pressAnyKey(); return; }
+    if (!p) { setColor(COLOR_ERROR); gotoxy(30, 10); printf("æ‚£è€…ä¸å­˜åœ¨ã€‚"); setColor(COLOR_DEFAULT); pressAnyKey(); return; }
     clearScreen();
     setColor(COLOR_TITLE);
-    printf("\n  ==================== »¼ Õß ²¡ Àú Õª Òª ====================\n\n");
+    printf("\n  ==================== æ‚£ è€… ç—… åŽ† æ‘˜ è¦ ====================\n\n");
     setColor(COLOR_DEFAULT);
-    printf("  ÐÕÃû:%s  ÐÔ±ð:%c  ÄêÁä:%d  µç»°:%s  ÀàÐÍ:%s\n", p->name, p->gender, p->age, p->phone, (p->type==0?"ÃÅÕï":"×¡Ôº"));
-    if (p->type == 1) printf("  ×¡Ôº´²Î»ºÅ:%d\n", p->bedId);
-    printf("\n  Ò½ÁÆ¼ÇÂ¼:\n");
+    printf("  å§“å:%s  æ€§åˆ«:%c  å¹´é¾„:%d  ç”µè¯:%s  ç±»åž‹:%s\n", p->name, p->gender, p->age, p->phone, (p->type==0?"é—¨è¯Š":"ä½é™¢"));
+    if (p->type == 1) printf("  ä½é™¢åºŠä½å·:%d\n", p->bedId);
+    printf("\n  åŒ»ç–—è®°å½•:\n");
     MedicalRecord* r = recordHead;
     while (r) {
         if (r->patientId == pid)
-            printf("    [%s] %s Ò½ÉúID:%d Õï¶Ï:%s\n", r->recordTime, r->recordType, r->doctorId, r->diagnosis);
+            printf("    [%s] %s åŒ»ç”ŸID:%d è¯Šæ–­:%s\n", r->recordTime, r->recordType, r->doctorId, r->diagnosis);
         r = r->next;
     }
     pressAnyKey();

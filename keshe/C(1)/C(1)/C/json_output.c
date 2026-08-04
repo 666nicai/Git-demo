@@ -1,6 +1,6 @@
 // ============================================================
-// ÎÄ¼þÃû: json_output.c
-// ÃèÊö: ÃüÁîÐÐ JSON Êä³ö¹¦ÄÜÊµÏÖ£¨º¬½ÐºÅ¹¦ÄÜ£©
+// æ–‡ä»¶å: json_output.c
+// æè¿°: å‘½ä»¤è¡Œ JSON è¾“å‡ºåŠŸèƒ½å®žçŽ°ï¼ˆå«å«å·åŠŸèƒ½ï¼‰
 // ============================================================
 
 #include "his.h"
@@ -115,7 +115,7 @@ void outputDoctorsJson() {
 void outputQueueJson(int doctorId) {
     Doctor *doc = findDoctorById(doctorId);
     if (!doc) {
-        printf("{\"error\":\"Ò½Éú²»´æÔÚ\"}\n");
+        printf("{\"error\":\"åŒ»ç”Ÿä¸å­˜åœ¨\"}\n");
         return;
     }
     printf("{\"doctorId\":%d,\"doctorName\":", doctorId);
@@ -131,7 +131,7 @@ void outputQueueJson(int doctorId) {
             printf("{");
             printf("\"recordId\":%d,", r->id);
             printf("\"patientId\":%d,", r->patientId);
-            printf("\"patientName\":"); printJsonString(p ? p->name : "Î´Öª"); printf(",");
+            printf("\"patientName\":"); printJsonString(p ? p->name : "æœªçŸ¥"); printf(",");
             printf("\"queueNumber\":%d,", r->queueNumber);
             printf("\"recordType\":"); printJsonString(r->recordType); printf(",");
             printf("\"recordTime\":"); printJsonString(r->recordTime);
@@ -145,7 +145,7 @@ void outputQueueJson(int doctorId) {
 void outputFeesJson(int patientId) {
     Patient *pat = findPatientById(patientId);
     if (!pat) {
-        printf("{\"error\":\"»¼Õß²»´æÔÚ\"}\n");
+        printf("{\"error\":\"æ‚£è€…ä¸å­˜åœ¨\"}\n");
         return;
     }
     printf("{\"patientId\":%d,\"patientName\":", patientId);
@@ -161,12 +161,12 @@ void outputFeesJson(int patientId) {
             printf("{");
             printf("\"id\":%d,", pf->id);
             char itemName[50];
-            if (pf->feeItemId == 888) strcpy(itemName, "´²Î»·Ñ");
-            else if (pf->feeItemId == 999) strcpy(itemName, "Ò©Æ··Ñ");
+            if (pf->feeItemId == 888) strcpy(itemName, "åºŠä½è´¹");
+            else if (pf->feeItemId == 999) strcpy(itemName, "è¯å“è´¹");
             else {
                 FeeItem *item = findFeeItemById(pf->feeItemId);
                 if (item) strcpy(itemName, item->name);
-                else strcpy(itemName, "Î´Öª");
+                else strcpy(itemName, "æœªçŸ¥");
             }
             printf("\"itemName\":"); printJsonString(itemName); printf(",");
             printf("\"quantity\":%d,", pf->quantity);
@@ -186,7 +186,7 @@ void outputFeesJson(int patientId) {
 void outputUnpaidFeesJson(int patientId) {
     Patient *pat = findPatientById(patientId);
     if (!pat) {
-        printf("{\"error\":\"»¼Õß²»´æÔÚ\"}\n");
+        printf("{\"error\":\"æ‚£è€…ä¸å­˜åœ¨\"}\n");
         return;
     }
     printf("{\"patientId\":%d,\"patientName\":", patientId);
@@ -202,12 +202,12 @@ void outputUnpaidFeesJson(int patientId) {
             printf("{");
             printf("\"id\":%d,", pf->id);
             char itemName[50];
-            if (pf->feeItemId == 888) strcpy(itemName, "´²Î»·Ñ");
-            else if (pf->feeItemId == 999) strcpy(itemName, "Ò©Æ··Ñ");
+            if (pf->feeItemId == 888) strcpy(itemName, "åºŠä½è´¹");
+            else if (pf->feeItemId == 999) strcpy(itemName, "è¯å“è´¹");
             else {
                 FeeItem *item = findFeeItemById(pf->feeItemId);
                 if (item) strcpy(itemName, item->name);
-                else strcpy(itemName, "Î´Öª");
+                else strcpy(itemName, "æœªçŸ¥");
             }
             printf("\"itemName\":"); printJsonString(itemName); printf(",");
             printf("\"totalAmount\":%.2f,", pf->totalAmount);
@@ -223,7 +223,7 @@ void outputUnpaidFeesJson(int patientId) {
 void outputInvoiceJson(int patientId) {
     Patient *p = findPatientById(patientId);
     if (!p) {
-        printf("{\"error\":\"»¼Õß²»´æÔÚ\"}\n");
+        printf("{\"error\":\"æ‚£è€…ä¸å­˜åœ¨\"}\n");
         return;
     }
     printf("{");
@@ -231,7 +231,7 @@ void outputInvoiceJson(int patientId) {
     printf("\"patientName\":"); printJsonString(p->name); printf(",");
     printf("\"gender\":\"%c\",", p->gender);
     printf("\"age\":%d,", p->age);
-    printf("\"patientType\":\"%s\",", p->type == 0 ? "ÃÅÕï" : "×¡Ôº");
+    printf("\"patientType\":\"%s\",", p->type == 0 ? "é—¨è¯Š" : "ä½é™¢");
 
     printf("\"items\":[");
     PatientFee *pf = patientFeeHead;
@@ -242,19 +242,19 @@ void outputInvoiceJson(int patientId) {
             if (!first) printf(",");
             first = 0;
             char itemName[50];
-            if (pf->feeItemId == 888) strcpy(itemName, "´²Î»·Ñ");
-            else if (pf->feeItemId == 999) strcpy(itemName, "Ò©Æ··Ñ");
+            if (pf->feeItemId == 888) strcpy(itemName, "åºŠä½è´¹");
+            else if (pf->feeItemId == 999) strcpy(itemName, "è¯å“è´¹");
             else {
                 FeeItem *item = findFeeItemById(pf->feeItemId);
                 if (item) strcpy(itemName, item->name);
-                else strcpy(itemName, "ÆäËû");
+                else strcpy(itemName, "å…¶ä»–");
             }
             printf("{");
             printf("\"name\":"); printJsonString(itemName); printf(",");
             printf("\"quantity\":%d,", pf->quantity);
             printf("\"unitPrice\":%.2f,", pf->unitPrice);
             printf("\"amount\":%.2f,", pf->totalAmount);
-            printf("\"status\":\"%s\"", pf->status == 0 ? "Î´¸¶" : "ÒÑ¸¶");
+            printf("\"status\":\"%s\"", pf->status == 0 ? "æœªä»˜" : "å·²ä»˜");
             printf("}");
             total += pf->totalAmount;
             if (pf->status == 1) paid += pf->totalAmount;
@@ -271,7 +271,7 @@ void outputInvoiceJson(int patientId) {
 void outputCallNextJson(int doctorId) {
     Doctor *doc = findDoctorById(doctorId);
     if (!doc) {
-        printf("{\"error\":\"Ò½Éú²»´æÔÚ\"}\n");
+        printf("{\"error\":\"åŒ»ç”Ÿä¸å­˜åœ¨\"}\n");
         return;
     }
 
@@ -287,14 +287,14 @@ void outputCallNextJson(int doctorId) {
     }
 
     if (!nextRec) {
-        printf("{\"error\":\"µ±Ç°Ã»ÓÐ´ý¾ÍÕï»¼Õß\"}\n");
+        printf("{\"error\":\"å½“å‰æ²¡æœ‰å¾…å°±è¯Šæ‚£è€…\"}\n");
         return;
     }
 
     nextRec->status = 1;
 
     Patient *p = findPatientById(nextRec->patientId);
-    char patientName[MAX_NAME_LEN] = "Î´Öª";
+    char patientName[MAX_NAME_LEN] = "æœªçŸ¥";
     if (p) strcpy(patientName, p->name);
 
     printf("{");

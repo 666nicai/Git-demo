@@ -1,45 +1,45 @@
 // ============================================================
-// ÎÄ¼şÃû: user.c
-// ÃèÊö: ÓÃ»§¹ÜÀíÄ£¿éÊµÏÖ (×¢²á¡¢µÇÂ¼)
+// æ–‡ä»¶å: user.c
+// æè¿°: ç”¨æˆ·ç®¡ç†æ¨¡å—å®ç° (æ³¨å†Œã€ç™»å½•)
 // ============================================================
 
 #include "user.h"
 #include <stdio.h>
+
 #include <stdlib.h>
 #include <string.h>
 
-// ¼òµ¥¹şÏ£º¯Êı (Ä£Äâ£¬Éú²ú»·¾³ÇëÌæ»»ÎªÕæÕıµÄ SHA256)
-static void simpleHash(const char* str, char output[65]) { // ²ÎÊı: str - ´ı¹şÏ£µÄÔ­Ê¼×Ö·û´®; output - Êä³ö¹şÏ£½á¹ûµÄ»º³åÇø
+// ç®€å•å“ˆå¸Œå‡½æ•° (æ¨¡æ‹Ÿï¼Œç”Ÿäº§ç¯å¢ƒè¯·æ›¿æ¢ä¸ºçœŸæ­£çš„ SHA256)
+static void simpleHash(const char* str, char output[65]) {
     unsigned long hash = 5381;
     int c;
-    while ((c = *str++)) // ±éÀú×Ö·û´®Ã¿¸ö×Ö·û
-        hash = ((hash << 5) + hash) + c; // ¹şÏ£ºËĞÄ¼ÆËã: hash = hash * 33 + c (hash << 5 µÈ¼ÛÓÚ hash * 32£¬¼Óhash¼´*33)
-    sprintf(output, "%016lx%016lx%016lx%016lx", hash, hash ^ 0xABCDEF, hash ^ 0x12345678, hash ^ 0x9ABCDEF0); 
-    // ½«¹şÏ£Öµ²ğ·ÖÎª4¸ö16½øÖÆ¶Î£¬Æ´½Ó³É64Î»×Ö·û´®´æÈëoutput
-    output[64] = '\0'; // ÊÖ¶¯Ìí¼Ó×Ö·û´®½áÊø·û
+    while ((c = *str++))
+        hash = ((hash << 5) + hash) + c;
+    sprintf(output, "%016lx%016lx%016lx%016lx", hash, hash ^ 0xABCDEF, hash ^ 0x12345678, hash ^ 0x9ABCDEF0);
+    output[64] = '\0';
 }
 
 void sha256(const char* str, char outputBuffer[65]) {
-    simpleHash(str, outputBuffer); // µ÷ÓÃÄ£Äâ¹şÏ£º¯ÊıÍê³É¼ÓÃÜ
+    simpleHash(str, outputBuffer);
 }
 
 User* userHead = NULL;
 
-// ³õÊ¼»¯Ä¬ÈÏ¹ÜÀíÔ±ÕË»§
+// åˆå§‹åŒ–é»˜è®¤ç®¡ç†å‘˜è´¦æˆ·
 void initDefaultUsers() {
     if (userHead != NULL) return;
 
-    User* admin = (User*)malloc(sizeof(User)); // Îª¹ÜÀíÔ±ÕË»§·ÖÅäÄÚ´æ¿Õ¼ä
-    admin->id = 1;                             // ÉèÖÃ¹ÜÀíÔ±IDÎª1
-    strcpy(admin->username, "admin"); 
-    sha256("admin123", admin->password);       // ¼ÓÃÜÄ¬ÈÏÃÜÂë"admin123"
-    admin->role = ROLE_ADMIN;                  // ÉèÖÃ½ÇÉ«Îª¹ÜÀíÔ±
-    admin->relatedId = 0;                      // ¹ÜÀíÔ±ÎŞ¹ØÁªID£¬ÉèÎª0
+    User* admin = (User*)malloc(sizeof(User));
+    admin->id = 1;
+    strcpy(admin->username, "admin");
+    sha256("admin123", admin->password);
+    admin->role = ROLE_ADMIN;
+    admin->relatedId = 0;
     admin->next = NULL;
     userHead = admin;
 }
 
-// ²éÕÒÓÃ»§
+// æŸ¥æ‰¾ç”¨æˆ·
 User* findUserByUsername(const char* username) {
     User* u = userHead;
     while (u) {
@@ -50,43 +50,43 @@ User* findUserByUsername(const char* username) {
     return NULL;
 }
 
-// ×¢²áĞÂÓÃ»§
-int     registerUser(const char* username, const char* password, UserRole role, int relatedId) {
+// æ³¨å†Œæ–°ç”¨æˆ·
+int registerUser(const char* username, const char* password, UserRole role, int relatedId) {
     if (findUserByUsername(username) != NULL)
-        return 0;   // ÓÃ»§ÃûÒÑ´æÔÚ
+        return 0;   // ç”¨æˆ·åå·²å­˜åœ¨
 
     if (role == ROLE_DOCTOR && findDoctorById(relatedId) == NULL)
-        return -1;  // Ò½ÉúID²»´æÔÚ
+        return -1;  // åŒ»ç”ŸIDä¸å­˜åœ¨
     if (role == ROLE_PATIENT && findPatientById(relatedId) == NULL)
-        return -2;  // »¼ÕßID²»´æÔÚ
+        return -2;  // æ‚£è€…IDä¸å­˜åœ¨
 
     User* newUser = (User*)malloc(sizeof(User));
-    newUser->id = (userHead == NULL) ? 1 : userHead->id + 1; // ÉèÖÃÓÃ»§ID: Á´±íÎª¿ÕÔòÉè1£¬·ñÔòÎªÍ·½ÚµãID+1
-    strcpy(newUser->username, username);                     // ¸´ÖÆÓÃ»§Ãûµ½ĞÂÓÃ»§½á¹¹Ìå
-    sha256(password, newUser->password);                     // ¼ÓÃÜÃÜÂë²¢´æ´¢
-    newUser->role = role;                                    // ÉèÖÃÓÃ»§½ÇÉ«
-    newUser->relatedId = relatedId;                          // ÉèÖÃ¹ØÁªID
+    newUser->id = (userHead == NULL) ? 1 : userHead->id + 1;
+    strcpy(newUser->username, username);
+    sha256(password, newUser->password);
+    newUser->role = role;
+    newUser->relatedId = relatedId;
     newUser->next = userHead;
     userHead = newUser;
-    return 1;   // ×¢²á³É¹¦
+    return 1;   // æ³¨å†ŒæˆåŠŸ
 }
 
-// µÇÂ¼ÑéÖ¤
+// ç™»å½•éªŒè¯
 int loginUser(const char* username, const char* password, UserRole* outRole, int* outRelatedId) {
     User* u = findUserByUsername(username);
-    if (u == NULL) return 0;    // ÓÃ»§²»´æÔÚ
+    if (u == NULL) return 0;    // ç”¨æˆ·ä¸å­˜åœ¨
 
-    char hashed[65];          // ¶¨Òå»º³åÇø´æ´¢ÊäÈëÃÜÂëµÄ¹şÏ£Öµ
-    sha256(password, hashed); // ¼ÓÃÜÊäÈëµÄÃ÷ÎÄÃÜÂë
+    char hashed[65];
+    sha256(password, hashed);
     if (strcmp(u->password, hashed) != 0)
-        return -1;  // ÃÜÂë´íÎó
+        return -1;  // å¯†ç é”™è¯¯
 
     if (outRole) *outRole = u->role;
     if (outRelatedId) *outRelatedId = u->relatedId;
-    return 1;   // µÇÂ¼³É¹¦
+    return 1;   // ç™»å½•æˆåŠŸ
 }
 
-// ========== JSON Êä³ö¸¨Öú ==========
+// ========== JSON è¾“å‡ºè¾…åŠ© ==========
 static void printJsonString(const char* str) {
     putchar('"');
     while (*str) {
@@ -105,7 +105,7 @@ static void printJsonString(const char* str) {
 
 void outputRegisterJson(const char* username, const char* password, int role, int relatedId) {
     if (username == NULL || password == NULL) {
-        printf("{\"success\":false,\"error\":\"²ÎÊı´íÎó\"}\n");
+        printf("{\"success\":false,\"error\":\"å‚æ•°é”™è¯¯\"}\n");
         return;
     }
 
@@ -113,21 +113,21 @@ void outputRegisterJson(const char* username, const char* password, int role, in
 
     int result = registerUser(username, password, (UserRole)role, relatedId);
     if (result == 1) {
-        printf("{\"success\":true,\"message\":\"×¢²á³É¹¦\"}\n");
+        printf("{\"success\":true,\"message\":\"æ³¨å†ŒæˆåŠŸ\"}\n");
     } else if (result == 0) {
-        printf("{\"success\":false,\"error\":\"ÓÃ»§ÃûÒÑ´æÔÚ\"}\n");
+        printf("{\"success\":false,\"error\":\"ç”¨æˆ·åå·²å­˜åœ¨\"}\n");
     } else if (result == -1) {
-        printf("{\"success\":false,\"error\":\"¹ØÁªÒ½ÉúID²»´æÔÚ\"}\n");
+        printf("{\"success\":false,\"error\":\"å…³è”åŒ»ç”ŸIDä¸å­˜åœ¨\"}\n");
     } else if (result == -2) {
-        printf("{\"success\":false,\"error\":\"¹ØÁª»¼ÕßID²»´æÔÚ\"}\n");
+        printf("{\"success\":false,\"error\":\"å…³è”æ‚£è€…IDä¸å­˜åœ¨\"}\n");
     } else {
-        printf("{\"success\":false,\"error\":\"×¢²áÊ§°Ü\"}\n");
+        printf("{\"success\":false,\"error\":\"æ³¨å†Œå¤±è´¥\"}\n");
     }
 }
 
 void outputLoginJson(const char* username, const char* password) {
     if (username == NULL || password == NULL) {
-        printf("{\"success\":false,\"error\":\"²ÎÊı´íÎó\"}\n");
+        printf("{\"success\":false,\"error\":\"å‚æ•°é”™è¯¯\"}\n");
         return;
     }
 
@@ -141,8 +141,8 @@ void outputLoginJson(const char* username, const char* password) {
                               (role == ROLE_DOCTOR) ? "doctor" : "patient";
         printf("{\"success\":true,\"role\":\"%s\",\"relatedId\":%d}\n", roleStr, relatedId);
     } else if (result == 0) {
-        printf("{\"success\":false,\"error\":\"ÓÃ»§²»´æÔÚ\"}\n");
+        printf("{\"success\":false,\"error\":\"ç”¨æˆ·ä¸å­˜åœ¨\"}\n");
     } else {
-        printf("{\"success\":false,\"error\":\"ÃÜÂë´íÎó\"}\n");
+        printf("{\"success\":false,\"error\":\"å¯†ç é”™è¯¯\"}\n");
     }
 }

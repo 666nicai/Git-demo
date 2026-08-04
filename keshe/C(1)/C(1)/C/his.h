@@ -1,7 +1,6 @@
 // ============================================================
-// ÎÄ¼şÃû: his.h
-// ÃèÊö: Ò½ÁÆ¹ÜÀíÏµÍ³È«¾ÖÍ·ÎÄ¼ş£¨ÖÕ¼«ÃÀ»¯°æ£©
-//       ÒÑ½« UserRole Ã¶¾Ù¶¨ÒåÒÆÖÁ´ËÎÄ¼ş£¬½â¾öÑ­»·°üº¬ÎÊÌâ
+// æ–‡ä»¶å: his.h
+// æè¿°: åŒ»ç–—ç®¡ç†ç³»ç»Ÿå…¨å±€å¤´æ–‡ä»¶ï¼ˆç»ˆæç¾åŒ–ç‰ˆï¼‰
 // ============================================================
 
 #ifndef HIS_H
@@ -12,33 +11,26 @@
 #include <string.h>
 #include <time.h>
 
-// ³£Á¿¶¨Òå
+// å¸¸é‡å®šä¹‰
 #define MAX_NAME_LEN 50
 #define MAX_PHONE_LEN 20
 #define MAX_ADDR_LEN 100
 #define MAX_DESC_LEN 200
 #define MAX_DRUG_NAME_LEN 80
 
-// ========== ¿ØÖÆÌ¨ÑÕÉ«³£Á¿ ==========
-#define COLOR_DEFAULT    0x07
-#define COLOR_TITLE      0x0B
-#define COLOR_SUCCESS    0x0A
-#define COLOR_ERROR      0x0C
-#define COLOR_WARNING    0x0E
-#define COLOR_BORDER     0x08
-#define COLOR_HEADER     0x09
-#define COLOR_ROW_EVEN   0x07
-#define COLOR_ROW_ODD    0x08
-#define COLOR_INPUT_BG   0x70
+// ========== æ§åˆ¶å°é¢œè‰²å¸¸é‡ ==========
+#define COLOR_DEFAULT    0x07   // é»˜è®¤ç°åº•ç™½å­—ï¼ˆæ ¹æ®å®é™…èƒŒæ™¯è°ƒæ•´ï¼‰
+#define COLOR_TITLE      0x0B   // äº®é’è‰²
+#define COLOR_SUCCESS    0x0A   // ç»¿è‰²
+#define COLOR_ERROR      0x0C   // çº¢è‰²
+#define COLOR_WARNING    0x0E   // é»„è‰²
+#define COLOR_BORDER     0x08   // ç°è‰²è¾¹æ¡†
+#define COLOR_HEADER     0x09   // è“è‰²è¡¨å¤´
+#define COLOR_ROW_EVEN   0x07   // å¶æ•°è¡Œé¢œè‰²
+#define COLOR_ROW_ODD    0x08   // å¥‡æ•°è¡Œé¢œè‰²
+#define COLOR_INPUT_BG   0x70   // ç°åº•é»‘å­—è¾“å…¥æ¡†èƒŒæ™¯
 
-// ========== ÓÃ»§½ÇÉ«Ã¶¾Ù£¨Ô­ÔÚ user.h£¬ÏÖÒÆµ½´Ë´¦½â¾öÑ­»·°üº¬£© ==========
-typedef enum {
-    ROLE_ADMIN,    // ¹ÜÀíÔ±
-    ROLE_DOCTOR,   // Ò½Éú
-    ROLE_PATIENT   // »¼Õß
-} UserRole;
-
-// ¿ÆÊÒ½á¹¹Ìå
+// ç§‘å®¤ç»“æ„ä½“
 typedef struct Department {
     int id;
     char name[MAX_NAME_LEN];
@@ -47,7 +39,7 @@ typedef struct Department {
     struct Department* next;
 } Department;
 
-// Ò½Éú½á¹¹Ìå
+// åŒ»ç”Ÿç»“æ„ä½“
 typedef struct Doctor {
     int id;
     char name[MAX_NAME_LEN];
@@ -57,7 +49,7 @@ typedef struct Doctor {
     struct Doctor* next;
 } Doctor;
 
-// »¼Õß½á¹¹Ìå
+// æ‚£è€…ç»“æ„ä½“
 typedef struct Patient {
     int id;
     char name[MAX_NAME_LEN];
@@ -70,7 +62,7 @@ typedef struct Patient {
     struct Patient* next;
 } Patient;
 
-// Ò½ÁÆ¼ÇÂ¼½á¹¹Ìå
+// åŒ»ç–—è®°å½•ç»“æ„ä½“
 typedef struct MedicalRecord {
     int id;
     int patientId;
@@ -84,7 +76,7 @@ typedef struct MedicalRecord {
     struct MedicalRecord* next;
 } MedicalRecord;
 
-// ´²Î»½á¹¹Ìå
+// åºŠä½ç»“æ„ä½“
 typedef struct Bed {
     int bedId;
     int wardId;
@@ -93,7 +85,7 @@ typedef struct Bed {
     struct Bed* next;
 } Bed;
 
-// ²¡·¿½á¹¹Ìå
+// ç—…æˆ¿ç»“æ„ä½“
 typedef struct Ward {
     int id;
     char type[20];
@@ -103,7 +95,7 @@ typedef struct Ward {
     struct Ward* next;
 } Ward;
 
-// Ò©Æ·½á¹¹Ìå
+// è¯å“ç»“æ„ä½“
 typedef struct Medicine {
     int id;
     char commonName[MAX_DRUG_NAME_LEN];
@@ -117,14 +109,14 @@ typedef struct Medicine {
     struct Medicine* next;
 } Medicine;
 
-// ´¦·½Ã÷Ï¸Ïî
+// å¤„æ–¹æ˜ç»†é¡¹
 typedef struct PrescriptionItem {
     int medicineId;
     int quantity;
     struct PrescriptionItem* next;
 } PrescriptionItem;
 
-// ´¦·½½á¹¹Ìå
+// å¤„æ–¹ç»“æ„ä½“
 typedef struct Prescription {
     int id;
     int recordId;
@@ -135,7 +127,7 @@ typedef struct Prescription {
     struct Prescription* next;
 } Prescription;
 
-// ·ÑÓÃ¹ÜÀíÏà¹Ø½á¹¹Ìå
+// è´¹ç”¨ç®¡ç†ç›¸å…³ç»“æ„ä½“
 typedef struct FeeItem {
     int id;
     char name[MAX_NAME_LEN];
@@ -167,7 +159,7 @@ typedef struct Payment {
     struct Payment* next;
 } Payment;
 
-// È«¾ÖÁ´±íÍ·Ö¸Õë
+// å…¨å±€é“¾è¡¨å¤´æŒ‡é’ˆ
 extern Department* deptHead;
 extern Doctor* doctorHead;
 extern Patient* patientHead;
@@ -179,7 +171,7 @@ extern FeeItem* feeItemHead;
 extern PatientFee* patientFeeHead;
 extern Payment* paymentHead;
 
-// ========== ¿ØÖÆÌ¨ÃÀ»¯º¯Êı ==========
+// ========== æ§åˆ¶å°ç¾åŒ–å‡½æ•° ==========
 void setColor(int color);
 void gotoxy(int x, int y);
 void hideCursor();
@@ -193,22 +185,22 @@ void pressAnyKey();
 void clearScreen();
 char* getCurrentTime();
 
-// °²È«ÊäÈëº¯Êı
+// å®‰å…¨è¾“å…¥å‡½æ•°ï¼ˆé™åˆ¶é•¿åº¦ï¼Œä¸ç ´åå¸ƒå±€ï¼‰
 void safeInput(char* buffer, int maxLen, int x, int y);
 
-// Êı¾İ³õÊ¼»¯
+// æ•°æ®åˆå§‹åŒ–
 void initDefaultData();
 int loadAllData();
 void saveAllData();
 
-// ¿ÆÊÒ¹ÜÀí
+// ç§‘å®¤ç®¡ç†
 void addDepartment();
 void listDepartments();
 Department* findDepartmentById(int id);
 void deleteDepartment();
 void updateDepartment();
 
-// Ò½Éú¹ÜÀí
+// åŒ»ç”Ÿç®¡ç†
 void addDoctor();
 void listDoctors();
 Doctor* findDoctorById(int id);
@@ -216,20 +208,20 @@ void listDoctorsByDept(int deptId);
 void updateDoctor();
 void deleteDoctor();
 
-// »¼Õß¹ÜÀí
+// æ‚£è€…ç®¡ç†
 void addPatient();
 void listPatients();
 Patient* findPatientById(int id);
 void updatePatient();
 void deletePatient();
 
-// Ò½ÁÆ¼ÇÂ¼¹ÜÀí
+// åŒ»ç–—è®°å½•ç®¡ç†
 void addMedicalRecord();
 void listMedicalRecords();
 void listRecordsByPatient(int patientId);
 MedicalRecord* findRecordById(int id);
 
-// ²¡·¿´²Î»¹ÜÀí
+// ç—…æˆ¿åºŠä½ç®¡ç†
 void addWard();
 void listWards();
 Bed* findFreeBed(int wardId);
@@ -237,20 +229,20 @@ int allocateBed(int patientId, int wardId);
 void freeBed(int bedId);
 void manageBeds();
 
-// Ò©Æ·¹ÜÀí
+// è¯å“ç®¡ç†
 void addMedicine();
 void listMedicines();
 Medicine* findMedicineById(int id);
 void updateMedicineStock();
 void deleteMedicine();
 
-// ´¦·½¹ÜÀí
+// å¤„æ–¹ç®¡ç†
 void addPrescription();
 void listPrescriptions();
 Prescription* findPrescriptionById(int id);
 void showPrescriptionDetail(Prescription* p);
 
-// Í³¼Æ±¨±í
+// ç»Ÿè®¡æŠ¥è¡¨
 void reportPatientStats();
 void reportDoctorWorkload();
 void reportDeptStats();
@@ -259,12 +251,12 @@ void reportWardUtilization();
 void reportComprehensive();
 void reportPatientView();
 
-// ²éÑ¯¹¦ÄÜ
+// æŸ¥è¯¢åŠŸèƒ½
 void searchPatientByName();
 void searchDoctorByName();
 void searchMedicineByName();
 
-// ·ÑÓÃ¹ÜÀí
+// è´¹ç”¨ç®¡ç†
 void addFeeItem();
 void listFeeItems();
 void updateFeeItem();
@@ -278,22 +270,23 @@ void listFeesByPatient();
 void listUnpaidFeesByPatient();
 void makePayment();
 void listPayments();
+void listPaymentsByPatient();
 void showPatientBalance();
 void settlePatientAccount();
 void printInvoice();
 
-// ¹ÒºÅÓëºòÕï¹ÜÀí
+// æŒ‚å·ä¸å€™è¯Šç®¡ç†
 void registerAppointment();
 void listQueueByDoctor();
 void callNextPatient();
 void completeCurrentPatient();
 void showMyQueue();
 
-// ´ø»¼ÕßID²ÎÊıµÄ°æ±¾
+// å¸¦æ‚£è€…IDå‚æ•°çš„ç‰ˆæœ¬
 void listUnpaidFeesByPatientId(int patientId);
 void makePaymentForPatient(int patientId);
 
-// JSON Êä³öº¯Êı
+// JSON è¾“å‡ºå‡½æ•°
 void outputStatsJson();
 void outputPatientsJson();
 void outputDoctorsJson();
@@ -303,11 +296,7 @@ void outputUnpaidFeesJson(int patientId);
 void outputInvoiceJson(int patientId);
 void outputCallNextJson(int doctorId);
 
-// ÓÃ»§¹ÜÀí£¨°üº¬ user.h£©
+// ç”¨æˆ·ç®¡ç†
 #include "user.h"
-
-// µ±Ç°µÇÂ¼ÓÃ»§ĞÅÏ¢£¨È«¾Ö±äÁ¿£¬ÉùÃ÷ÔÚ user.h Ö®ºó£©
-extern UserRole currentUserRole;
-extern int currentDoctorId;
 
 #endif
