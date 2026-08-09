@@ -1,0 +1,20 @@
+//保留数字
+fixed + setprecision(n) = 保留 n 位小数
+不加 fixed 时，setprecision(n) = 控制 n 位有效数字
+setprecision 会持续生效，直到你再次修改
+    cout << fixed << setprecision(3) << 1.2345 << endl;  // 1.235
+    cout << 5.6789 << endl;  // 还是3位小数：5.679
+恢复默认 ：cout << defaultfloat << 1.2345 << endl;  // 恢复默认显示方式
+
+
+//补零
+setw(n)：设置输出占 n 个字符的宽度
+setfill('0')：用 '0' 填充空白位置（默认是空格）
+**setfill 会持续生效，直到你重新设置
+**setw 只对下一个输出有效
+**如果数字位数超过宽度，不会截断
+
+//取整
+向上取整（正整数）	(a + b - 1) / b
+向下取整（默认）	a / b
+四舍五入	(a + b/2) / b
