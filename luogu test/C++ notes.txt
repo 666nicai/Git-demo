@@ -27,6 +27,7 @@ cbrt 开立方
 
 //swap 交换数值
 
+
 //约分
     // 辗转相除法求最大公约数
     int gcd(int a, int b) {
@@ -36,3 +37,13 @@ cbrt 开立方
     int g = gcd(a, b);
     a /= g;
     b /= g;
+
+    //
+    int gcd(int a, int b) {
+    while (b != 0) {
+        int temp = a % b;
+        a = b;
+        b = temp;
+    }
+    return a;
+}
