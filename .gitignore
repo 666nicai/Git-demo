@@ -1,0 +1,26 @@
+# ===== 编译产物（由源码生成，不纳入版本控制）=====
+
+# Windows 可执行文件
+*.exe
+
+# 其他常见编译产物
+*.o
+*.obj
+*.out
+*.a
+*.lib
+
+# 构建目录
+build/
+dist/
+
+# VSCode Run Code 插件生成的临时可执行文件
+/keshe/C(1)/C(1)/C/run code/run
+
+# ===== 系统/编辑器杂项 =====
+
+# Windows 系统文件
+Thumbs.db
+Desktop.ini
+
+# VS Code 本地设置（保留 .vscode 里想共享的配置，可按需调整）
