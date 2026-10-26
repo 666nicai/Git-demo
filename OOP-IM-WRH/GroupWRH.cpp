@@ -4,19 +4,20 @@
 // 作者  : 魏荣赫  学号 55250124  软件一班(552401班)
 // ============================================================
 #include "GroupWRH.h"
+#include "ShortTypes.h"
 #include "UserWRH.h"
 #include <iostream>
 
 using namespace std;
 
-GroupWRH::GroupWRH(int gno, const string& name, MicroType svc, UserWRH* owner)
+GroupWRH::GroupWRH(int gno, const string& name, MicroType svc, User* owner)
     : gno_(gno), name_(name), svc_(svc) {
     // 建群的人自动成为群主，并进入成员容器
     if (owner) members_.add(owner, ROLE_OWNER);
 }
 
-UserWRH* GroupWRH::owner() const {
-    const vector<GroupMemberWRH>& v = members_.all();
+User* Group::owner() const {
+    const vector<GroupMember>& v = members_.all();
     for (size_t i = 0; i < v.size(); ++i)
         if (v[i].role() == ROLE_OWNER) return v[i].user();
     return nullptr;
@@ -24,11 +25,11 @@ UserWRH* GroupWRH::owner() const {
 
 // 入群：QQ群可以主动申请；微信群只能在 canApplyJoin() 里返回 false，
 // 然后由 requestJoin() 打印“只能邀请/推荐”的提示。
-bool GroupWRH::join(UserWRH* who) {
+bool Group::join(User* who) {
     return requestJoin(who);
 }
 
-bool GroupWRH::requestJoin(UserWRH* who) {
+bool Group::requestJoin(User* who) {
     if (!who) return false;
     if (members_.isMember(who)) {
         cout << "    [提示] " << who->nick() << " 已在本群。\n";
@@ -53,7 +54,7 @@ bool GroupWRH::requestJoin(UserWRH* who) {
 }
 
 // 邀请/推荐：两种群都允许，微信群就是靠这条路径加人的
-bool GroupWRH::inviteJoin(UserWRH* actor, UserWRH* who) {
+bool Group::inviteJoin(User* actor, User* who) {
     if (!actor || !who) return false;
     if (!members_.isMember(actor)) {
         cout << "    [提示] " << actor->nick() << " 不是本群成员，无权邀请。\n";
@@ -75,7 +76,7 @@ bool GroupWRH::inviteJoin(UserWRH* actor, UserWRH* who) {
     return true;
 }
 
-bool GroupWRH::kick(UserWRH* actor, UserWRH* who) {
+bool Group::kick(User* actor, User* who) {
     if (!actor || !who) return false;
     if (!members_.isMember(actor)) {
         cout << "    [提示] " << actor->nick() << " 不是本群成员，无权操作。\n";
@@ -93,7 +94,7 @@ bool GroupWRH::kick(UserWRH* actor, UserWRH* who) {
     return true;
 }
 
-bool GroupWRH::setAdmin(UserWRH* actor, UserWRH* who) {
+bool Group::setAdmin(User* actor, User* who) {
     if (!canSetAdmin(actor, who)) {
         cout << "    [提示] " << (actor ? actor->nick() : string("?"))
              << " 无权设置管理员。" << kindName()
@@ -107,7 +108,7 @@ bool GroupWRH::setAdmin(UserWRH* actor, UserWRH* who) {
     return true;
 }
 
-bool GroupWRH::cancelAdmin(UserWRH* actor, UserWRH* who) {
+bool Group::cancelAdmin(User* actor, User* who) {
     if (!canSetAdmin(actor, who)) {
         cout << "    [提示] 无权取消管理员。" << kindName()
              << "规则：" << manageMode() << "\n";
@@ -120,7 +121,7 @@ bool GroupWRH::cancelAdmin(UserWRH* actor, UserWRH* who) {
 }
 
 // 群主不能直接退群：否则群会没有群主。先转让群主再退。
-bool GroupWRH::quit(UserWRH* who) {
+bool Group::quit(User* who) {
     if (!who || !members_.isMember(who)) {
         cout << "    [提示] 非群成员不能退群。\n";
         return false;
@@ -135,8 +136,8 @@ bool GroupWRH::quit(UserWRH* who) {
     return true;
 }
 
-void GroupWRH::show() const {
-    UserWRH* ow = owner();
+void Group::show() const {
+    User* ow = owner();
     cout << "  ------- " << kindName() << " " << gno_ << " -------\n";
     cout << "   群号：" << gno_ << "  群名：" << name_
          << "  所属：" << microName(svc_) << "\n";

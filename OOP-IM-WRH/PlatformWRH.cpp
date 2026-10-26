@@ -4,6 +4,7 @@
 // 作者  : 魏荣赫  学号 55250124  软件一班(552401班)
 // ============================================================
 #include "PlatformWRH.h"
+#include "ShortTypes.h"
 
 #include "GroupWRH.h"
 #include "MicroAccountWRH.h"
@@ -14,10 +15,12 @@
 #include "WeChatGroupWRH.h"
 #include "WeiboAccountWRH.h"
 
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <sstream>
+#include <thread>
 
 using namespace std;
 
@@ -26,6 +29,19 @@ namespace {
 
 void divider(const char* t) {
     cout << "\n================ " << t << " ================\n";
+}
+
+// 自动演示的节奏（毫秒）。
+// 觉得整个演示太快：把 DEMO_PAUSE_MS 调大（比如 1500、2000）；
+// 觉得太慢：调小（比如 700、500）。另外两个常量会跟着一起变。
+const int DEMO_PAUSE_MS   = 1000;                    // 一个普通步骤
+const int DEMO_SECTION_MS = DEMO_PAUSE_MS * 3 / 2;   // 两个大段之间
+const int DEMO_LINE_MS    = DEMO_PAUSE_MS / 8;       // 逐行打印的列表
+
+// 先 flush 再睡：不然 cout 还憋在缓冲区里，停完才一下全吐出来
+void demoPause(int ms = DEMO_PAUSE_MS) {
+    cout.flush();
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
 // 去掉首尾空白（备注允许为空，也允许中间带空格）
@@ -90,7 +106,7 @@ PlatformWRH::~PlatformWRH() {
     clearAll();
 }
 
-void PlatformWRH::clearAll() {
+void Platform::clearAll() {
     for (size_t i = 0; i < users_.size(); ++i)
         delete users_[i];
     for (size_t i = 0; i < groups_.size(); ++i)
@@ -108,7 +124,7 @@ void PlatformWRH::clearAll() {
 //   F 主号A 主号B 服务 备注
 //   G 群号 群名 服务 群主主号
 //   K 群号 服务 成员主号 角色
-void PlatformWRH::save() const {
+void Platform::save() const {
     ofstream out(file_.c_str());
     if (!out) {
         cout << "[文件] 无法写入 " << file_ << "\n";
@@ -117,23 +133,23 @@ void PlatformWRH::save() const {
 
     // ---- 第 1 段：用户资料、开通的服务、微信绑定 ----
     for (size_t i = 0; i < users_.size(); ++i) {
-        UserWRH* u = users_[i];
+        User* u = users_[i];
         out << "U " << u->mainNo() << ' ' << u->nick() << ' '
             << u->birth().str() << ' ' << u->applyDate().str() << ' '
             << u->city() << "\n";
 
-        const vector<MicroAccountWRH*>& accs = u->accounts();
+        const vector<Account*>& accs = u->accounts();
         for (size_t j = 0; j < accs.size(); ++j) {
             out << "O " << u->mainNo() << ' ' << svcName(accs[j]->type());
             if (accs[j]->type() == MWX) {
-                WeChatAccountWRH* w =
-                    dynamic_cast<WeChatAccountWRH*>(accs[j]);
+                WeChatAccount* w =
+                    dynamic_cast<WeChatAccount*>(accs[j]);
                 out << ' ' << (w ? w->wxNo() : "");
             }
             out << "\n";
         }
 
-        WeChatAccountWRH* w = u->wxAccount();
+        WeChatAccount* w = u->wxAccount();
         if (w && w->hasBoundQQ())
             out << "B " << u->mainNo() << ' ' << w->boundQQ() << "\n";
     }
@@ -142,10 +158,10 @@ void PlatformWRH::save() const {
     // 每个方向各写一条。这样 A 对 B 的备注和 B 对 A 的备注都能保住，
     // 不会出现“只有主号小的一方存了备注”的丢数据问题。
     for (size_t i = 0; i < users_.size(); ++i) {
-        UserWRH* u = users_[i];
-        const vector<MicroAccountWRH*>& accs = u->accounts();
+        User* u = users_[i];
+        const vector<Account*>& accs = u->accounts();
         for (size_t j = 0; j < accs.size(); ++j) {
-            const vector<FriendInfoWRH>& fs = accs[j]->friends().all();
+            const vector<FriendInfo>& fs = accs[j]->friends().all();
             for (size_t k = 0; k < fs.size(); ++k) {
                 out << "F " << u->mainNo() << ' '
                     << fs[k].person()->mainNo() << ' '
@@ -157,12 +173,12 @@ void PlatformWRH::save() const {
 
     // ---- 第 3 段：群与群成员 ----
     for (size_t i = 0; i < groups_.size(); ++i) {
-        GroupWRH* g = groups_[i];
+        Group* g = groups_[i];
         out << "G " << g->gno() << ' ' << g->name() << ' '
             << svcName(g->svc()) << ' '
             << (g->owner() ? g->owner()->mainNo() : "0") << "\n";
 
-        const vector<GroupMemberWRH>& ms = g->members().all();
+        const vector<GroupMember>& ms = g->members().all();
         for (size_t j = 0; j < ms.size(); ++j) {
             if (ms[j].isOwner()) continue;   // 群主由 G 行恢复
             out << "K " << g->gno() << ' ' << svcName(g->svc()) << ' '
@@ -174,7 +190,7 @@ void PlatformWRH::save() const {
          << " 位，群 " << groups_.size() << " 个）\n";
 }
 
-bool PlatformWRH::load() {
+bool Platform::load() {
     ifstream in(file_.c_str());
     if (!in) return false;
 
@@ -186,7 +202,7 @@ bool PlatformWRH::load() {
     }
     in.close();
 
-    map<string, UserWRH*> byId;
+    map<string, User*> byId;
 
     // ---- 第 1 遍：U 行，先把所有用户建出来 ----
     // 这一步必须先做：F 行里会引用“对方”，如果边读边建，
@@ -200,9 +216,9 @@ bool PlatformWRH::load() {
         string id, nick, birth, apply, city;
         if (!(iss >> id >> nick >> birth >> apply >> city)) continue;
 
-        MyDateWRH b, a;
+        Date b, a;
         if (!b.parse(birth) || !a.parse(apply)) continue;
-        UserWRH* u = new UserWRH(id, nick, b, a, city);
+        User* u = new User(id, nick, b, a, city);
         users_.push_back(u);
         byId[id] = u;
     }
@@ -219,7 +235,7 @@ bool PlatformWRH::load() {
         iss >> id >> s;
         if (!parseSvc(s, t)) continue;
 
-        UserWRH* u = byId[id];
+        User* u = byId[id];
         if (!u) continue;
         if (t == MWX && (iss >> wx)) u->setWxNo(wx);
         u->openService(t, true);   // 读文件时安静恢复，不打印“开通成功”
@@ -235,7 +251,7 @@ bool PlatformWRH::load() {
 
         string id, qq;
         iss >> id >> qq;
-        UserWRH* u = byId[id];
+        User* u = byId[id];
         if (u) u->bindWxToQQ(qq, true);
     }
 
@@ -256,12 +272,12 @@ bool PlatformWRH::load() {
         remark = trim(remark);
         if (!parseSvc(s, t)) continue;
 
-        UserWRH* ua = byId[a];
-        UserWRH* ub = byId[b];
+        User* ua = byId[a];
+        User* ub = byId[b];
         if (!ua || !ub) continue;
 
-        MicroAccountWRH* aa = ua->account(t);
-        MicroAccountWRH* ab = ub->account(t);
+        Account* aa = ua->account(t);
+        Account* ab = ub->account(t);
         if (!aa || !ab) continue;
 
         if (!aa->friends().has(ub)) {
@@ -288,12 +304,12 @@ bool PlatformWRH::load() {
 
         // 这里只要求群主用户存在。旧文件里可能有“群主已注销该服务”的群，
         // 读文件时宁可保留群历史，也不要静默把整个群丢掉。
-        UserWRH* ow = byId[ownerId];
+        User* ow = byId[ownerId];
         if (!ow) continue;
 
-        GroupWRH* g = nullptr;
-        if (t == MQQ) g = new QQGroupWRH(no, name, ow);
-        else          g = new WeChatGroupWRH(no, name, ow);
+        Group* g = nullptr;
+        if (t == MQQ) g = new QQGroup(no, name, ow);
+        else          g = new WeChatGroup(no, name, ow);
         groups_.push_back(g);
     }
 
@@ -311,10 +327,10 @@ bool PlatformWRH::load() {
         if (!parseSvc(s, t)) continue;
 
         // 同上：成员用户存在就恢复，尽量不因为服务注销而丢成员记录
-        UserWRH* u = byId[uid];
+        User* u = byId[uid];
         if (!u) continue;
 
-        GroupWRH* g = nullptr;
+        Group* g = nullptr;
         for (size_t j = 0; j < groups_.size(); ++j) {
             if (groups_[j]->gno() == no && groups_[j]->svc() == t) {
                 g = groups_[j];
@@ -346,22 +362,22 @@ bool PlatformWRH::load() {
 
 // ==================== 查找与选择 ====================
 
-UserWRH* PlatformWRH::findUser(const string& id) const {
+User* Platform::findUser(const string& id) const {
     for (size_t i = 0; i < users_.size(); ++i)
         if (users_[i]->mainNo() == id) return users_[i];
     return nullptr;
 }
 
-void PlatformWRH::listAllUsersShort() const {
+void Platform::listAllUsersShort() const {
     for (size_t i = 0; i < users_.size(); ++i) {
-        const UserWRH* u = users_[i];
+        const User* u = users_[i];
         cout << "   " << (i + 1) << ". 主号 " << u->mainNo()
              << "  昵称 " << u->nick() << "  [" << u->city()
              << "]  已开通 " << openedToStr(u->openedSet()) << "\n";
     }
 }
 
-UserWRH* PlatformWRH::pickUser(const char* tip) const {
+User* Platform::pickUser(const char* tip) const {
     cout << tip << "\n";
     listAllUsersShort();
     int k = askInt("请输入用户序号(0=取消)：") - 1;
@@ -369,14 +385,14 @@ UserWRH* PlatformWRH::pickUser(const char* tip) const {
     return users_[k];
 }
 
-GroupWRH* PlatformWRH::pickGroup(const char* tip) const {
+Group* Platform::pickGroup(const char* tip) const {
     cout << tip << "\n";
     if (groups_.empty()) {
         cout << "   （当前没有群）\n";
         return nullptr;
     }
     for (size_t i = 0; i < groups_.size(); ++i) {
-        const GroupWRH* g = groups_[i];
+        const Group* g = groups_[i];
         cout << "   " << (i + 1) << ". [" << g->kindName() << "] 群号 "
              << g->gno() << " 群名 " << g->name()
              << "  群主 " << (g->owner() ? g->owner()->nick() : "(无)")
@@ -387,7 +403,7 @@ GroupWRH* PlatformWRH::pickGroup(const char* tip) const {
     return groups_[k];
 }
 
-MicroType PlatformWRH::pickService() const {
+MicroType Platform::pickService() const {
     int k = askInt("请选择服务 [1=QQ 2=微博 3=微信] (0=取消)：");
     if (k == 1) return MQQ;
     if (k == 2) return MWB;
@@ -395,9 +411,9 @@ MicroType PlatformWRH::pickService() const {
     return MCOUNT;
 }
 
-MicroType PlatformWRH::pickServiceFromUser(const UserWRH* u) const {
+MicroType Platform::pickServiceFromUser(const User* u) const {
     if (!u) return MCOUNT;
-    const vector<MicroAccountWRH*>& as = u->accounts();
+    const vector<Account*>& as = u->accounts();
     if (as.empty()) {
         cout << "    [提示] 该用户尚未开通任何服务。\n";
         return MCOUNT;
@@ -413,11 +429,11 @@ MicroType PlatformWRH::pickServiceFromUser(const UserWRH* u) const {
     return as[k - 1]->type();
 }
 
-string PlatformWRH::toSvcName(MicroType t) {
+string Platform::toSvcName(MicroType t) {
     return microName(t);
 }
 
-bool PlatformWRH::parseSvc(const string& s, MicroType& t) {
+bool Platform::parseSvc(const string& s, MicroType& t) {
     if (s == "QQ")   { t = MQQ; return true; }
     if (s == "微博") { t = MWB; return true; }
     if (s == "微信") { t = MWX; return true; }
@@ -425,19 +441,19 @@ bool PlatformWRH::parseSvc(const string& s, MicroType& t) {
 }
 
 // 跨服务推荐：from 好友里，有 to 服务账号、但还没加为 to 好友的人
-vector<UserWRH*> PlatformWRH::recommendFriends(const UserWRH* op,
+vector<User*> Platform::recommendFriends(const User* op,
                                                MicroType from,
                                                MicroType to) const {
-    vector<UserWRH*> rec;
+    vector<User*> rec;
     if (!op || from == to) return rec;
 
-    const MicroAccountWRH* src = op->account(from);
-    const MicroAccountWRH* dst = op->account(to);
+    const Account* src = op->account(from);
+    const Account* dst = op->account(to);
     if (!src || !dst) return rec;
 
-    const vector<FriendInfoWRH>& fs = src->friends().all();
+    const vector<FriendInfo>& fs = src->friends().all();
     for (size_t i = 0; i < fs.size(); ++i) {
-        UserWRH* p = fs[i].person();
+        User* p = fs[i].person();
         if (!p || p == op) continue;
         if (p->hasService(to) && !dst->isFriend(p))
             rec.push_back(p);
@@ -449,17 +465,17 @@ vector<UserWRH*> PlatformWRH::recommendFriends(const UserWRH* op,
 //   · 普通成员：直接从该服务的群里移出
 //   · 群主：先把群主转给管理员（没有管理员就转给第一个成员），再移出自己
 //   · 群里只剩他一个人：群没有意义了，删除
-void PlatformWRH::cleanGroupsAfterClose(UserWRH* u, MicroType t) {
+void Platform::cleanGroupsAfterClose(User* u, MicroType t) {
     for (size_t i = 0; i < groups_.size(); ) {
-        GroupWRH* g = groups_[i];
+        Group* g = groups_[i];
         if (g->svc() != t || !g->isMember(u)) {
             ++i;
             continue;
         }
 
         if (g->owner() == u) {
-            UserWRH* next = nullptr;
-            const vector<GroupMemberWRH>& ms = g->members().all();
+            User* next = nullptr;
+            const vector<GroupMember>& ms = g->members().all();
 
             // 优先找管理员接任
             for (size_t j = 0; j < ms.size(); ++j) {
@@ -498,7 +514,7 @@ void PlatformWRH::cleanGroupsAfterClose(UserWRH* u, MicroType t) {
 
 // ==================== 演示数据 ====================
 
-void PlatformWRH::buildDemo() {
+void Platform::buildDemo() {
     clearAll();          // 保证可以重复调用，不会叠数据
     tempNo_ = 2000;
 
@@ -519,19 +535,19 @@ void PlatformWRH::buildDemo() {
         {"10006", "老马", "1996-07-19", "2012-10-01", "杭州"},
     };
     for (size_t i = 0; i < sizeof(seeds) / sizeof(seeds[0]); ++i) {
-        MyDateWRH b, a;
+        Date b, a;
         b.parse(seeds[i].birth);
         a.parse(seeds[i].apply);
-        users_.push_back(new UserWRH(seeds[i].id, seeds[i].nick,
+        users_.push_back(new User(seeds[i].id, seeds[i].nick,
                                      b, a, seeds[i].city));
     }
 
-    UserWRH* u1 = findUser("10001");
-    UserWRH* u2 = findUser("10002");
-    UserWRH* u3 = findUser("10003");
-    UserWRH* u4 = findUser("10004");
-    UserWRH* u5 = findUser("10005");
-    UserWRH* u6 = findUser("10006");
+    User* u1 = findUser("10001");
+    User* u2 = findUser("10002");
+    User* u3 = findUser("10003");
+    User* u4 = findUser("10004");
+    User* u5 = findUser("10005");
+    User* u6 = findUser("10006");
     if (!u1 || !u2 || !u3 || !u4 || !u5 || !u6) return;
 
     // ---- 开通服务（安静开通，具体演示放在 demoOpenServices）----
@@ -566,68 +582,68 @@ void PlatformWRH::buildDemo() {
 
     // ---- 预置群：每个服务都有 1001~1006 ----
     // QQ群 1001~1006
-    QQGroupWRH* q1 = new QQGroupWRH(1001, "C++程序设计学习群", u1);
+    QQGroup* q1 = new QQGroup(1001, "C++程序设计学习群", u1);
     q1->members().add(u2, ROLE_ADMIN);
     q1->members().add(u3, ROLE_MEMBER);
     q1->members().add(u4, ROLE_MEMBER);
     q1->members().add(u5, ROLE_MEMBER);
     groups_.push_back(q1);
 
-    QQGroupWRH* q2 = new QQGroupWRH(1002, "班级事务通知群", u2);
+    QQGroup* q2 = new QQGroup(1002, "班级事务通知群", u2);
     q2->members().add(u1, ROLE_ADMIN);
     q2->members().add(u4, ROLE_MEMBER);
     groups_.push_back(q2);
 
-    QQGroupWRH* q3 = new QQGroupWRH(1003, "考研自习室", u3);
+    QQGroup* q3 = new QQGroup(1003, "考研自习室", u3);
     q3->members().add(u1, ROLE_MEMBER);
     q3->members().add(u4, ROLE_ADMIN);
     groups_.push_back(q3);
 
-    QQGroupWRH* q4 = new QQGroupWRH(1004, "前端技术交流群", u4);
+    QQGroup* q4 = new QQGroup(1004, "前端技术交流群", u4);
     q4->members().add(u2, ROLE_ADMIN);
     q4->members().add(u5, ROLE_MEMBER);
     groups_.push_back(q4);
 
-    QQGroupWRH* q5 = new QQGroupWRH(1005, "算法打卡群", u5);
+    QQGroup* q5 = new QQGroup(1005, "算法打卡群", u5);
     q5->members().add(u1, ROLE_MEMBER);
     q5->members().add(u3, ROLE_ADMIN);
     groups_.push_back(q5);
 
-    QQGroupWRH* q6 = new QQGroupWRH(1006, "校园二手交易", u2);
+    QQGroup* q6 = new QQGroup(1006, "校园二手交易", u2);
     q6->members().add(u3, ROLE_MEMBER);
     q6->members().add(u4, ROLE_MEMBER);
     groups_.push_back(q6);
 
     // 微信群 1001~1006（微信群没有管理员，全部是普通成员）
-    WeChatGroupWRH* w1 = new WeChatGroupWRH(1001, "周末爬山俱乐部", u5);
+    WeChatGroup* w1 = new WeChatGroup(1001, "周末爬山俱乐部", u5);
     w1->members().add(u6, ROLE_MEMBER);
     w1->members().add(u2, ROLE_MEMBER);
     w1->members().add(u1, ROLE_MEMBER);
     w1->members().add(u4, ROLE_MEMBER);
     groups_.push_back(w1);
 
-    WeChatGroupWRH* w2 = new WeChatGroupWRH(1002, "产品内测体验群", u1);
+    WeChatGroup* w2 = new WeChatGroup(1002, "产品内测体验群", u1);
     w2->members().add(u4, ROLE_MEMBER);
     w2->members().add(u2, ROLE_MEMBER);
     groups_.push_back(w2);
 
-    WeChatGroupWRH* w3 = new WeChatGroupWRH(1003, "长春吃喝玩乐", u2);
+    WeChatGroup* w3 = new WeChatGroup(1003, "长春吃喝玩乐", u2);
     w3->members().add(u1, ROLE_MEMBER);
     w3->members().add(u4, ROLE_MEMBER);
     w3->members().add(u6, ROLE_MEMBER);
     groups_.push_back(w3);
 
-    WeChatGroupWRH* w4 = new WeChatGroupWRH(1004, "家人群", u6);
+    WeChatGroup* w4 = new WeChatGroup(1004, "家人群", u6);
     w4->members().add(u1, ROLE_MEMBER);
     w4->members().add(u2, ROLE_MEMBER);
     groups_.push_back(w4);
 
-    WeChatGroupWRH* w5 = new WeChatGroupWRH(1005, "项目讨论组", u4);
+    WeChatGroup* w5 = new WeChatGroup(1005, "项目讨论组", u4);
     w5->members().add(u2, ROLE_MEMBER);
     w5->members().add(u5, ROLE_MEMBER);
     groups_.push_back(w5);
 
-    WeChatGroupWRH* w6 = new WeChatGroupWRH(1006, "读书分享会", u5);
+    WeChatGroup* w6 = new WeChatGroup(1006, "读书分享会", u5);
     w6->members().add(u1, ROLE_MEMBER);
     w6->members().add(u6, ROLE_MEMBER);
     groups_.push_back(w6);
@@ -635,19 +651,21 @@ void PlatformWRH::buildDemo() {
 
 // ==================== 自动演示 ====================
 
-void PlatformWRH::demoOpenServices() {
+void Platform::demoOpenServices() {
     divider("开通管理演示");
+    demoPause();
     cout << "已有演示用户都开通了若干服务，下面用一个新用户演示开通/注销：\n";
 
-    UserWRH* nu = findUser("10007");
+    User* nu = findUser("10007");
     if (!nu) {
-        MyDateWRH b, a;
+        Date b, a;
         b.parse("2002-04-18");
         a.parse("2016-01-01");
-        nu = new UserWRH("10007", "新手上路", b, a, "长春");
+        nu = new User("10007", "新手上路", b, a, "长春");
         users_.push_back(nu);
     }
     nu->showProfile();
+    demoPause(DEMO_PAUSE_MS / 2);
 
     nu->openService(MQQ);   // QQ：共享主号
     nu->openService(MWB);   // 微博：与QQ同一个号
@@ -655,75 +673,92 @@ void PlatformWRH::demoOpenServices() {
 
     cout << "\n[共享ID验证] QQ号码 = " << nu->account(MQQ)->svcNo()
          << "，微博号码 = " << nu->account(MWB)->svcNo() << "（相同）\n";
-    WeChatAccountWRH* w = nu->wxAccount();
+    WeChatAccount* w = nu->wxAccount();
     if (w)
         cout << "[独立ID验证] 微信号 = " << w->wxNo()
              << "（与主号不同，可绑定QQ）\n";
+    demoPause();
 
     cout << "\n绑定演示：把新用户的微信绑定到QQ：\n";
     nu->bindWxToQQ(nu->mainNo());
+    demoPause();
 
     cout << "\n注销微博演示：\n";
     nu->closeService(MWB);
     cout << "注销后已开通服务数 = " << nu->openedCount() << "\n";
+    demoPause(DEMO_PAUSE_MS / 2);
     nu->closeService(MWB);   // 重复注销：应给出提示
+    demoPause(DEMO_PAUSE_MS / 2);
 }
 
-void PlatformWRH::demoLogin() {
+void Platform::demoLogin() {
     divider("登录管理演示（一个服务登录 → 其它自动登录）");
-    UserWRH* u1 = findUser("10001");
+    demoPause();
+    User* u1 = findUser("10001");
     if (!u1) return;
 
     u1->logoutAll();
     u1->showProfile();
+    demoPause(DEMO_PAUSE_MS / 2);
     u1->login(MQQ);   // 只在QQ登录，微博/微信会自动登录
+    demoPause();
     u1->login(MWB);   // 已经全登录，再登录微博只是重复打印
+    demoPause(DEMO_PAUSE_MS / 2);
 
     cout << "\n全部登出后，改在微信登录：\n";
     u1->logoutAll();
     u1->login(MWX);
+    demoPause();
 }
 
-void PlatformWRH::demoFriendCRUD() {
+void Platform::demoFriendCRUD() {
     divider("好友管理演示（增 / 删 / 改 / 查）");
-    UserWRH* u1 = findUser("10001");
-    UserWRH* u2 = findUser("10002");
-    UserWRH* u3 = findUser("10003");
-    UserWRH* u5 = findUser("10005");
-    UserWRH* u6 = findUser("10006");
+    demoPause();
+    User* u1 = findUser("10001");
+    User* u2 = findUser("10002");
+    User* u3 = findUser("10003");
+    User* u5 = findUser("10005");
+    User* u6 = findUser("10006");
     if (!u1 || !u2 || !u3 || !u5 || !u6) return;
 
-    MicroAccountWRH* qq = u1->account(MQQ);
+    Account* qq = u1->account(MQQ);
     if (!qq) return;
 
     cout << "小腾 的 QQ 好友（添加前）：\n";
     qq->friends().list();
+    demoPause();
 
     cout << "\n[增] 添加 QQ 好友 小雨(10005)，备注“算法队友”：\n";
     qq->addFriend(u5, "算法队友");
+    demoPause(DEMO_PAUSE_MS / 2);
 
     cout << "\n[增][失败演示] 老马(10006)未开通QQ，不能成为QQ好友：\n";
     qq->addFriend(u6, "");
+    demoPause(DEMO_PAUSE_MS / 2);
 
     cout << "\n[删] 删除 QQ 好友 娜娜(10003)：\n";
     qq->delFriend(u3);
     cout << "删除后好友数 = " << qq->friends().count() << "\n";
+    demoPause(DEMO_PAUSE_MS / 2);
 
     cout << "\n[改] 把对 阿讯(10002) 的备注改为“学委阿讯”：\n";
     if (qq->friends().find(u2))
         qq->friends().setRemark(u2, "学委阿讯");
+    demoPause(DEMO_PAUSE_MS / 2);
 
     cout << "\n[查] 好友查询结果：\n";
     qq->friends().list();
+    demoPause();
 }
 
-void PlatformWRH::demoCommonFriend() {
+void Platform::demoCommonFriend() {
     divider("微X间共同好友演示（QQ 与 微博）");
-    UserWRH* u1 = findUser("10001");
+    demoPause();
+    User* u1 = findUser("10001");
     if (!u1) return;
 
-    MicroAccountWRH* qq = u1->account(MQQ);
-    MicroAccountWRH* wb = u1->account(MWB);
+    Account* qq = u1->account(MQQ);
+    Account* wb = u1->account(MWB);
     if (!qq || !wb) {
         cout << "（需要同时开通QQ与微博）\n";
         return;
@@ -733,64 +768,72 @@ void PlatformWRH::demoCommonFriend() {
     qq->friends().listSimple();
     cout << "      微博好友为 ";
     wb->friends().listSimple();
+    demoPause();
 
-    vector<UserWRH*> common = qq->friends().commonWith(wb->friends());
+    vector<User*> common = qq->friends().commonWith(wb->friends());
     cout << "QQ 与 微博 的共同好友(" << common.size() << "人)：";
     for (size_t i = 0; i < common.size(); ++i)
         cout << (i ? "、" : "") << common[i]->nick();
     cout << "\n";
+    demoPause();
 }
 
-void PlatformWRH::demoWeChatRecFriend() {
+void Platform::demoWeChatRecFriend() {
     divider("微信 添加“QQ推荐好友”");
-    UserWRH* u1 = findUser("10001");
+    demoPause();
+    User* u1 = findUser("10001");
     if (!u1) return;
 
-    MicroAccountWRH* wx = u1->account(MWX);
+    Account* wx = u1->account(MWX);
     if (!wx) {
         cout << "（需要同时开通QQ与微信）\n";
         return;
     }
 
-    vector<UserWRH*> rec = recommendFriends(u1, MQQ, MWX);
+    vector<User*> rec = recommendFriends(u1, MQQ, MWX);
     cout << "小腾的 QQ 好友中，已开通微信且还不是微信好友的人("
          << rec.size() << "人)：";
     for (size_t i = 0; i < rec.size(); ++i)
         cout << (i ? "、" : "") << rec[i]->nick()
              << "(" << rec[i]->wxNo() << ")";
     cout << "\n将这些人逐个添加为微信好友：\n";
+    demoPause();
 
     for (size_t i = 0; i < rec.size(); ++i) {
         if (wx->addFriend(rec[i], "来自QQ推荐"))
             cout << "    [推荐] 已把 " << rec[i]->nick()
                  << "(" << rec[i]->wxNo() << ") 添加为微信好友\n";
     }
+    demoPause();
 
     cout << "\n添加后 小腾 的微信好友：";
     wx->friends().listSimple();
+    demoPause();
 }
 
-void PlatformWRH::demoGroups() {
+void Platform::demoGroups() {
     divider("群管理多态演示（QQ群 vs 微信群）");
-    UserWRH* u1 = findUser("10001");
-    UserWRH* u2 = findUser("10002");
-    UserWRH* u3 = findUser("10003");
-    UserWRH* u4 = findUser("10004");
-    UserWRH* u5 = findUser("10005");
+    demoPause();
+    User* u1 = findUser("10001");
+    User* u2 = findUser("10002");
+    User* u3 = findUser("10003");
+    User* u4 = findUser("10004");
+    User* u5 = findUser("10005");
     if (!u1 || !u2 || !u3 || !u4 || !u5) return;
 
     // 预置群有 12 个，先列清单，避免把整个屏幕刷满
     cout << "\n—— 预置群列表（每个服务 1001~1006）——\n";
     for (size_t i = 0; i < groups_.size(); ++i) {
-        GroupWRH* g = groups_[i];
-        UserWRH* ow = g->owner();
+        Group* g = groups_[i];
+        User* ow = g->owner();
         cout << "  [" << g->kindName() << "] " << g->gno() << " "
              << g->name() << "  群主：" << (ow ? ow->nick() : string("(无)"))
              << "  成员：" << g->memberCount() << " 人\n";
+        demoPause(DEMO_LINE_MS);
     }
 
-    GroupWRH* q1001 = nullptr;   // QQ群 1001
-    GroupWRH* w1001 = nullptr;   // 微信群 1001
+    Group* q1001 = nullptr;   // QQ群 1001
+    Group* w1001 = nullptr;   // 微信群 1001
     for (size_t i = 0; i < groups_.size(); ++i) {
         if (groups_[i]->gno() == 1001 && groups_[i]->svc() == MQQ)
             q1001 = groups_[i];
@@ -801,56 +844,62 @@ void PlatformWRH::demoGroups() {
     cout << "\n—— 两个代表性群的详情 ——\n";
     if (q1001) q1001->show();
     if (w1001) w1001->show();
+    demoPause();
 
     // 准备演示用户：
     //   nu  (10007)：demoOpenServices 已建，开通了 QQ + 微信
     //   u8  (10008)：新建，只开通微信，用来演示“微信群只能被邀请”
-    UserWRH* nu = findUser("10007");
+    User* nu = findUser("10007");
     if (!nu) {
-        MyDateWRH b, a;
+        Date b, a;
         b.parse("2002-04-18");
         a.parse("2016-01-01");
-        nu = new UserWRH("10007", "新手上路", b, a, "长春");
+        nu = new User("10007", "新手上路", b, a, "长春");
         users_.push_back(nu);
         nu->openService(MQQ, true);
     }
-    UserWRH* u8 = findUser("10008");
+    User* u8 = findUser("10008");
     if (!u8) {
-        MyDateWRH b, a;
+        Date b, a;
         b.parse("2003-02-11");
         a.parse("2017-05-20");
-        u8 = new UserWRH("10008", "被邀新人", b, a, "大连");
+        u8 = new User("10008", "被邀新人", b, a, "大连");
         users_.push_back(u8);
         u8->openService(MWX, true);
     }
+    demoPause(DEMO_PAUSE_MS / 2);
 
     // 1) 申请加入：QQ群可以，微信群不行
     cout << "\n[申请加入] QQ群可申请；微信群只能被邀请/推荐：\n";
     if (q1001 && nu) q1001->requestJoin(nu);
     if (w1001 && u8) w1001->requestJoin(u8);
+    demoPause();
 
     // 2) 邀请加入：成员邀请，两种群都允许
     cout << "\n[邀请加入] 微信群群主邀请 被邀新人：\n";
     if (w1001 && u5 && u8) w1001->inviteJoin(u5, u8);
+    demoPause();
 
     // 3) 设管理员：QQ群可以，微信群没有管理员
     cout << "\n[设管理员] QQ群群主可设；微信群无管理员：\n";
     if (q1001 && u1 && nu) q1001->setAdmin(u1, nu);
     if (w1001 && u5 && u8) w1001->setAdmin(u5, u8);
+    demoPause();
 
     // 4) 踢人：QQ群管理员可踢普通成员；微信群只有群主能踢
     cout << "\n[踢人] QQ群管理员踢普通成员；微信群成员踢人被拒、群主可踢：\n";
     if (q1001 && u2 && u4) q1001->kick(u2, u4);
     if (w1001 && u1 && u8) w1001->kick(u1, u8);
     if (w1001 && u5 && u8) w1001->kick(u5, u8);
+    demoPause();
 
     // 5) 临时讨论组：QQ群可以，微信群不可以
     cout << "\n[临时讨论组] QQ群可建子群；微信群不可：\n";
     if (q1001) {
-        vector<UserWRH*> picks;
+        vector<User*> picks;
         picks.push_back(u2);
         picks.push_back(u3);
-        GroupWRH* sub = q1001->createSubGroup(tempNo_ + 1,
+        Group* sub = q1001->createSubGroup(tempNo_ + 1,
                                               "临时代码评审会", picks);
         if (sub) {
             ++tempNo_;
@@ -860,13 +909,14 @@ void PlatformWRH::demoGroups() {
         }
     }
     if (w1001) {
-        GroupWRH* s2 = w1001->createSubGroup(tempNo_ + 1, "临时会",
-                                             vector<UserWRH*>());
+        Group* s2 = w1001->createSubGroup(tempNo_ + 1, "临时会",
+                                             vector<User*>());
         if (s2) {
             ++tempNo_;
             groups_.push_back(s2);
         }
     }
+    demoPause();
 
     // 6) 查询某人所在群
     cout << "\n[查询] 查看 小腾(10001) 加入的所有群：\n";
@@ -875,11 +925,13 @@ void PlatformWRH::demoGroups() {
         cout << "    [" << groups_[i]->kindName() << "] 群号 "
              << groups_[i]->gno() << " 群名 " << groups_[i]->name() << "\n";
     }
+    demoPause();
 }
 
-void PlatformWRH::demoModeSwitch() {
+void Platform::demoModeSwitch() {
     divider("群管理模式动态切换（成员数据不受伤）");
-    GroupWRH* src = nullptr;
+    demoPause();
+    Group* src = nullptr;
     for (size_t i = 0; i < groups_.size(); ++i) {
         if (groups_[i]->gno() == 1001 && groups_[i]->svc() == MQQ) {
             src = groups_[i];
@@ -891,20 +943,23 @@ void PlatformWRH::demoModeSwitch() {
     int before = src->memberCount();
     cout << "切换前 [QQ群1001] 成员数 = " << before << "\n";
     src->show();
+    demoPause();
 
     cout << "\n→ 调用 modeTwin() 生成“同样成员、微信群规则”的镜像群：\n";
-    GroupWRH* twin = src->modeTwin();
+    Group* twin = src->modeTwin();
     if (!twin) return;
+    demoPause(DEMO_PAUSE_MS / 2);
 
     cout << "（镜像群成员数 = " << twin->memberCount()
          << "，与源群 " << before << " 一致 → 数据不受伤）\n";
     twin->show();
+    demoPause();
     delete twin;
 }
 
 // ==================== 数据总览 ====================
 
-void PlatformWRH::menuOverview() {
+void Platform::menuOverview() {
     divider("数据总览");
     cout << "平台共 " << users_.size() << " 位用户，"
          << groups_.size() << " 个群\n";
@@ -923,14 +978,14 @@ void PlatformWRH::menuOverview() {
 }
 
 // 精简总览：每行一个用户/一个群，文件读回验证时用
-void PlatformWRH::showBrief() const {
+void Platform::showBrief() const {
     cout << "  用户（" << users_.size() << " 位）：\n";
     for (size_t i = 0; i < users_.size(); ++i) {
-        const UserWRH* u = users_[i];
+        const User* u = users_[i];
         cout << "    " << u->mainNo() << " " << u->nick()
              << "  开通：" << openedToStr(u->openedSet());
 
-        const vector<MicroAccountWRH*>& accs = u->accounts();
+        const vector<Account*>& accs = u->accounts();
         for (size_t j = 0; j < accs.size(); ++j)
             cout << "  " << microName(accs[j]->type())
                  << "好友" << accs[j]->friends().count();
@@ -939,8 +994,8 @@ void PlatformWRH::showBrief() const {
 
     cout << "  群（" << groups_.size() << " 个）：\n";
     for (size_t i = 0; i < groups_.size(); ++i) {
-        const GroupWRH* g = groups_[i];
-        UserWRH* ow = g->owner();
+        const Group* g = groups_[i];
+        User* ow = g->owner();
         cout << "    [" << g->kindName() << "] " << g->gno() << " "
              << g->name() << "  群主：" << (ow ? ow->nick() : string("(无)"))
              << "  成员：" << g->memberCount() << " 人\n";
@@ -949,7 +1004,7 @@ void PlatformWRH::showBrief() const {
 
 // ==================== 用户菜单 ====================
 
-void PlatformWRH::menuUser() {
+void Platform::menuUser() {
     while (true) {
         cout << "\n----------- 用户管理 ----------\n";
         cout << " 1. 查看全部用户\n"
@@ -970,17 +1025,17 @@ void PlatformWRH::menuUser() {
         }
 
         if (k == 2) {
-            UserWRH* u = pickUser("选择用户：");
+            User* u = pickUser("选择用户：");
             if (!u) continue;
             u->showProfile();
             u->showOpened();
         } else if (k == 3) {
-            UserWRH* u = pickUser("选择要开通服务的用户：");
+            User* u = pickUser("选择要开通服务的用户：");
             if (!u) continue;
             MicroType t = pickService();
             if (t != MCOUNT) u->openService(t);
         } else if (k == 4) {
-            UserWRH* u = pickUser("选择要注销服务的用户：");
+            User* u = pickUser("选择要注销服务的用户：");
             if (!u) continue;
             MicroType t = pickServiceFromUser(u);
             if (t != MCOUNT) {
@@ -989,17 +1044,17 @@ void PlatformWRH::menuUser() {
                 if (had) cleanGroupsAfterClose(u, t);   // 群里的记录也要一起清
             }
         } else if (k == 5) {
-            UserWRH* u = pickUser("选择登录的用户：");
+            User* u = pickUser("选择登录的用户：");
             if (!u) continue;
             MicroType t = pickServiceFromUser(u);
             if (t != MCOUNT) u->login(t);
         } else if (k == 6) {
-            UserWRH* u = pickUser("选择登出的用户：");
+            User* u = pickUser("选择登出的用户：");
             if (!u) continue;
             u->logoutAll();
             cout << "    已全部登出。\n";
         } else if (k == 7) {
-            UserWRH* u = pickUser("选择要绑定微信的用户：");
+            User* u = pickUser("选择要绑定微信的用户：");
             if (!u) continue;
             string qq = askLine("输入要绑定的QQ主号（直接回车=绑定自己的主号）：");
             if (qq.empty() || qq == "0") qq = u->mainNo();
@@ -1012,8 +1067,8 @@ void PlatformWRH::menuUser() {
 
 // ==================== 好友菜单 ====================
 
-void PlatformWRH::menuFriend() {
-    UserWRH* op = pickUser("好友管理：请选择操作者");
+void Platform::menuFriend() {
+    User* op = pickUser("好友管理：请选择操作者");
     if (!op) return;
 
     while (true) {
@@ -1033,15 +1088,15 @@ void PlatformWRH::menuFriend() {
 
         if (k == 1) {
             MicroType t = pickServiceFromUser(op);
-            MicroAccountWRH* ac = op->account(t);
+            Account* ac = op->account(t);
             if (ac) ac->friends().list();
         } else if (k == 2) {
             MicroType t = pickServiceFromUser(op);
-            MicroAccountWRH* ac = op->account(t);
+            Account* ac = op->account(t);
             if (!ac) continue;
 
             string id = askStr("输入对方主号：");
-            UserWRH* who = findUser(id);
+            User* who = findUser(id);
             if (!who) {
                 cout << "    没有该用户。\n";
                 continue;
@@ -1050,20 +1105,20 @@ void PlatformWRH::menuFriend() {
             ac->addFriend(who, rem);
         } else if (k == 3) {
             MicroType t = pickServiceFromUser(op);
-            MicroAccountWRH* ac = op->account(t);
+            Account* ac = op->account(t);
             if (!ac) continue;
 
             string id = askStr("输入要删除的好友主号：");
-            UserWRH* who = findUser(id);
+            User* who = findUser(id);
             if (who && ac->friends().has(who)) ac->delFriend(who);
             else cout << "    不是该服务好友，或用户不存在。\n";
         } else if (k == 4) {
             MicroType t = pickServiceFromUser(op);
-            MicroAccountWRH* ac = op->account(t);
+            Account* ac = op->account(t);
             if (!ac) continue;
 
             string id = askStr("输入要改备注的好友主号：");
-            UserWRH* who = findUser(id);
+            User* who = findUser(id);
             string rem = askLine("输入新备注（可为空）：");
             if (who && ac->friends().find(who))
                 ac->friends().setRemark(who, rem);
@@ -1071,12 +1126,12 @@ void PlatformWRH::menuFriend() {
                 cout << "    不是好友，或用户不存在。\n";
         } else if (k == 5) {
             MicroType t = pickServiceFromUser(op);
-            MicroAccountWRH* ac = op->account(t);
+            Account* ac = op->account(t);
             if (!ac) continue;
 
             string id = askStr("输入要查询的好友主号：");
-            UserWRH* who = findUser(id);
-            FriendInfoWRH* fi = who ? ac->friends().find(who) : nullptr;
+            User* who = findUser(id);
+            FriendInfo* fi = who ? ac->friends().find(who) : nullptr;
             if (fi)
                 cout << "    该好友：" << fi->person()->nick()
                      << " 主号 " << fi->person()->mainNo()
@@ -1094,14 +1149,14 @@ void PlatformWRH::menuFriend() {
                 continue;
             }
 
-            MicroAccountWRH* aa = op->account(a);
-            MicroAccountWRH* bb = op->account(b);
+            Account* aa = op->account(a);
+            Account* bb = op->account(b);
             cout << "    " << microName(a) << "好友：";
             aa->friends().listSimple();
             cout << "    " << microName(b) << "好友：";
             bb->friends().listSimple();
 
-            vector<UserWRH*> cm = aa->friends().commonWith(bb->friends());
+            vector<User*> cm = aa->friends().commonWith(bb->friends());
             cout << "    共同好友(" << cm.size() << ")：";
             for (size_t i = 0; i < cm.size(); ++i)
                 cout << (i ? "、" : "") << cm[i]->nick();
@@ -1117,7 +1172,7 @@ void PlatformWRH::menuFriend() {
                 continue;
             }
 
-            vector<UserWRH*> rec = recommendFriends(op, from, to);
+            vector<User*> rec = recommendFriends(op, from, to);
             if (rec.empty()) {
                 cout << "    没有可推荐的好友。\n";
                 continue;
@@ -1142,7 +1197,7 @@ void PlatformWRH::menuFriend() {
 
 // ==================== 群菜单 ====================
 
-void PlatformWRH::menuGroup() {
+void Platform::menuGroup() {
     while (true) {
         cout << "\n----------- 群管理 ----------\n";
         cout << " 1. 查看全部群\n"
@@ -1164,46 +1219,46 @@ void PlatformWRH::menuGroup() {
             for (size_t i = 0; i < groups_.size(); ++i)
                 groups_[i]->show();
         } else if (k == 2) {
-            GroupWRH* g = pickGroup("选择群：");
+            Group* g = pickGroup("选择群：");
             if (g) g->show();
         } else if (k == 3) {
-            GroupWRH* g = pickGroup("选择要加入的群：");
+            Group* g = pickGroup("选择要加入的群：");
             if (!g) continue;
             string id = askStr("输入申请者主号：");
-            UserWRH* who = findUser(id);
+            User* who = findUser(id);
             if (who) g->requestJoin(who);
             else cout << "    无该用户。\n";
         } else if (k == 4) {
-            GroupWRH* g = pickGroup("选择群：");
+            Group* g = pickGroup("选择群：");
             if (!g) continue;
             string a = askStr("输入邀请者主号（须群内成员）：");
             string b = askStr("输入被邀请者主号：");
-            UserWRH* actor = findUser(a);
-            UserWRH* who = findUser(b);
+            User* actor = findUser(a);
+            User* who = findUser(b);
             if (!actor || !who) {
                 cout << "    主号不存在。\n";
                 continue;
             }
             g->inviteJoin(actor, who);
         } else if (k == 5) {
-            GroupWRH* g = pickGroup("选择群：");
+            Group* g = pickGroup("选择群：");
             if (!g) continue;
             string a = askStr("输入操作者主号：");
             string b = askStr("输入被踢者主号：");
-            UserWRH* actor = findUser(a);
-            UserWRH* who = findUser(b);
+            User* actor = findUser(a);
+            User* who = findUser(b);
             if (!actor || !who) {
                 cout << "    主号不存在。\n";
                 continue;
             }
             g->kick(actor, who);
         } else if (k == 6) {
-            GroupWRH* g = pickGroup("选择群：");
+            Group* g = pickGroup("选择群：");
             if (!g) continue;
             string a = askStr("输入操作者主号（仅群主可设）：");
             string b = askStr("输入目标成员主号：");
-            UserWRH* actor = findUser(a);
-            UserWRH* who = findUser(b);
+            User* actor = findUser(a);
+            User* who = findUser(b);
             if (!actor || !who) {
                 cout << "    主号不存在。\n";
                 continue;
@@ -1212,15 +1267,15 @@ void PlatformWRH::menuGroup() {
             if (up == 1) g->setAdmin(actor, who);
             else if (up == 2) g->cancelAdmin(actor, who);
         } else if (k == 7) {
-            GroupWRH* g = pickGroup("选择群：");
+            Group* g = pickGroup("选择群：");
             if (!g) continue;
             string a = askStr("输入退群者主号：");
-            UserWRH* who = findUser(a);
+            User* who = findUser(a);
             if (who) g->quit(who);
             else cout << "    无该用户。\n";
         } else if (k == 8) {
             string id = askStr("输入要查询的用户主号：");
-            UserWRH* who = findUser(id);
+            User* who = findUser(id);
             if (!who) {
                 cout << "    无该用户。\n";
                 continue;
@@ -1233,7 +1288,7 @@ void PlatformWRH::menuGroup() {
                      << groups_[i]->name() << "\n";
             }
         } else if (k == 9) {
-            GroupWRH* g = pickGroup("选择群（建议选QQ群）：");
+            Group* g = pickGroup("选择群（建议选QQ群）：");
             if (!g) continue;
             cout << "    群类型：" << g->kindName()
                  << "  能否建临时讨论组："
@@ -1245,13 +1300,13 @@ void PlatformWRH::menuGroup() {
                 continue;
             }
 
-            vector<UserWRH*> picks;
-            UserWRH* o = pickUser("选择要拉进子群的成员：");
+            vector<User*> picks;
+            User* o = pickUser("选择要拉进子群的成员：");
             if (o) picks.push_back(o);
-            UserWRH* o2 = pickUser("再选一名（取消则只有群主）：");
+            User* o2 = pickUser("再选一名（取消则只有群主）：");
             if (o2) picks.push_back(o2);
 
-            GroupWRH* sub = g->createSubGroup(tempNo_ + 1, name, picks);
+            Group* sub = g->createSubGroup(tempNo_ + 1, name, picks);
             if (sub) {
                 ++tempNo_;
                 groups_.push_back(sub);
@@ -1259,12 +1314,12 @@ void PlatformWRH::menuGroup() {
                 sub->show();
             }
         } else if (k == 10) {
-            GroupWRH* g = pickGroup("选择要切换管理模式的群：");
+            Group* g = pickGroup("选择要切换管理模式的群：");
             if (!g) continue;
             int before = g->memberCount();
             cout << "    切换前成员数 = " << before << "\n";
 
-            GroupWRH* twin = g->modeTwin();
+            Group* twin = g->modeTwin();
             if (twin) {
                 cout << "    → 生成镜像群(" << twin->kindName()
                      << ")，成员数 = " << twin->memberCount()
@@ -1280,13 +1335,13 @@ void PlatformWRH::menuGroup() {
 
 // ==================== 文件演示菜单 ====================
 
-void PlatformWRH::menuFile() {
+void Platform::menuFile() {
     divider("文件读写演示");
     cout << "先保存，再用一个新的平台实例把文件读回来验证：\n";
     save();
 
     // autoSave = false：这个实例只负责读回验证，析构时不要再写一遍
-    PlatformWRH check(file_, false);
+    Platform check(file_, false);
     cout << "\n[读回验证] 新实例：用户 " << check.userCount()
          << " 位，群 " << check.groupCount() << " 个\n";
     check.showBrief();
@@ -1294,7 +1349,7 @@ void PlatformWRH::menuFile() {
 
 // ==================== 主菜单 ====================
 
-void PlatformWRH::run() {
+void Platform::run() {
     while (true) {
         cout << "\n################ 腾讯立体社交平台模拟系统 ################\n";
         cout << "  当前数据：用户 " << users_.size() << " 位，群 "
@@ -1323,20 +1378,30 @@ void PlatformWRH::run() {
     }
 }
 
-void PlatformWRH::autoDemo() {
+void Platform::autoDemo() {
     divider("自动演示开始");
     buildDemo();   // 每次都从同一份固化数据开始，保证演示结果可重复
+    demoPause(DEMO_PAUSE_MS / 2);
 
     demoOpenServices();
+    demoPause(DEMO_SECTION_MS);
     demoLogin();
+    demoPause(DEMO_SECTION_MS);
     demoFriendCRUD();
+    demoPause(DEMO_SECTION_MS);
     demoCommonFriend();
+    demoPause(DEMO_SECTION_MS);
     demoWeChatRecFriend();
+    demoPause(DEMO_SECTION_MS);
     demoGroups();
+    demoPause(DEMO_SECTION_MS);
     demoModeSwitch();
+    demoPause(DEMO_SECTION_MS);
 
     divider("演示后的数据总览");
+    demoPause(DEMO_PAUSE_MS / 2);
     showBrief();
+    demoPause(DEMO_SECTION_MS);
 
     cout << "\n自动演示完毕，退出时会把数据写回 " << file_ << "。\n";
 }

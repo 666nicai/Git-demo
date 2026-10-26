@@ -4,6 +4,7 @@
 // 作者  : 魏荣赫  学号 55250124  软件一班(552401班)
 // ============================================================
 #include "PlatformWRH.h"
+#include "ShortTypes.h"
 #include <iostream>
 
 #ifdef _WIN32
@@ -27,7 +28,7 @@ int main() {
             "  类名统一带姓名缩写 WRH（5个技术层次均实现）\n"
             "  ==================================================\n";
 
-    PlatformWRH platform("platform_data.txt");   // 构造时自动读文件或建演示数据
+    Platform platform("platform_data.txt");   // 构造时自动读文件或建演示数据
     platform.run();                              // 数字化主菜单
     cout << "程序结束，谢谢使用。\n";
     return 0;

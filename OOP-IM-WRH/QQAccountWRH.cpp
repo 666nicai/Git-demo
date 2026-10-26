@@ -4,9 +4,10 @@
 // 作者  : 魏荣赫  学号 55250124  软件一班(552401班)
 // ============================================================
 #include "QQAccountWRH.h"
+#include "ShortTypes.h"
 #include "UserWRH.h"
 
 // QQ 号码 = 平台主号（与微博是同一个号）
-std::string QQAccountWRH::svcNo() const {
+std::string QQAccount::svcNo() const {
     return owner_->mainNo();
 }

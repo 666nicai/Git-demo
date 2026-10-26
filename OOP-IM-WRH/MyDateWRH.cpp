@@ -4,6 +4,7 @@
 // 作者  : 魏荣赫  学号 55250124  软件一班(552401班)
 // ============================================================
 #include "MyDateWRH.h"
+#include "ShortTypes.h"
 #include <cstdio>
 #include <ctime>
 
@@ -33,7 +34,7 @@ static long daysFromCivil(int y, unsigned m, unsigned d) {
     return static_cast<long>(era) * 146097 + static_cast<long>(doe) - 719468;
 }
 
-MyDateWRH MyDateWRH::today() {
+Date Date::today() {
     time_t t = time(nullptr);
     tm now;
 #if defined(_WIN32)
@@ -41,20 +42,20 @@ MyDateWRH MyDateWRH::today() {
 #else
     localtime_r(&t, &now);
 #endif
-    return MyDateWRH(now.tm_year + 1900, now.tm_mon + 1, now.tm_mday);
+    return Date(now.tm_year + 1900, now.tm_mon + 1, now.tm_mday);
 }
 
-long MyDateWRH::days() const {
+long Date::days() const {
     return daysFromCivil(y, m, d);
 }
 
-string MyDateWRH::str() const {
+string Date::str() const {
     char buf[16];
     snprintf(buf, sizeof buf, "%04d-%02d-%02d", y, m, d);
     return string(buf);
 }
 
-bool MyDateWRH::parse(const string& s) {
+bool Date::parse(const string& s) {
     int yy, mm, dd;
     if (sscanf(s.c_str(), "%d-%d-%d", &yy, &mm, &dd) != 3) return false;
     if (yy < 1 || mm < 1 || mm > 12) return false;

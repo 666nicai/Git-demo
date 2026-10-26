@@ -4,23 +4,24 @@
 // 作者  : 魏荣赫  学号 55250124  软件一班(552401班)
 // ============================================================
 #include "MicroAccountWRH.h"
+#include "ShortTypes.h"
 #include "UserWRH.h"
 #include <iostream>
 
 using namespace std;
 
-MicroAccountWRH::MicroAccountWRH(UserWRH* owner, MicroType t,
-                                 const MyDateWRH& apply)
+MicroAccountWRH::MicroAccountWRH(User* owner, MicroType t,
+                                 const Date& apply)
     : owner_(owner), type_(t), logged_(false), applyDate_(apply) {}
 
 MicroAccountWRH::~MicroAccountWRH() {}
 
 // 在本服务下加好友：自己这侧写备注，对方那侧也加一条（备注留空）
-bool MicroAccountWRH::addFriend(UserWRH* who, const string& remark) {
+bool Account::addFriend(User* who, const string& remark) {
     if (!who || who == owner_) return false;
 
     // 对方必须也开通了本服务，否则这个服务下根本没有他的号
-    MicroAccountWRH* other = who->account(type_);
+    Account* other = who->account(type_);
     if (!other) {
         cout << "    [提示] " << who->nick() << " 尚未开通 " << svcName()
              << "，无法成为 " << svcName() << " 好友。\n";
@@ -38,16 +39,16 @@ bool MicroAccountWRH::addFriend(UserWRH* who, const string& remark) {
 }
 
 // 删好友要双向解除，不然对方列表里会留下“单向好友”
-bool MicroAccountWRH::delFriend(UserWRH* who) {
+bool Account::delFriend(User* who) {
     if (!who) return false;
     bool removed = friends_.remove(who);
-    MicroAccountWRH* other = who->account(type_);
+    Account* other = who->account(type_);
     if (other) other->friends().remove(owner_);
     return removed;
 }
 
 // 公共展示：服务、号码、ID策略、T龄、登录状态、好友
-void MicroAccountWRH::show() const {
+void Account::show() const {
     cout << "  [" << svcName() << "] 用户：" << owner_->nick()
          << "  号码：" << svcNo() << "\n";
 
