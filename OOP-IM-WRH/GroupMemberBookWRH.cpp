@@ -1,12 +1,13 @@
-// 作者：魏荣赫 学号55250124 软件一班(552401班)  类名统一带姓名缩写 WRH
-// 文件：GroupMemberBookWRH.cpp
+// ============================================================
+// 文件名: GroupMemberBookWRH.cpp
+// 描述  : 群成员容器实现——增删查、改角色、展示
+// 作者  : 魏荣赫  学号 55250124  软件一班(552401班)
+// ============================================================
 #include "GroupMemberBookWRH.h"
 #include "UserWRH.h"
 #include <iostream>
 
-// =====================================================================
-// GroupMemberBookWRH.cpp  群成员容器实现
-// =====================================================================
+using namespace std;
 
 bool GroupMemberBookWRH::add(UserWRH* u, MemberRole r) {
     if (!u || isMember(u)) return false;
@@ -15,11 +16,11 @@ bool GroupMemberBookWRH::add(UserWRH* u, MemberRole r) {
 }
 
 bool GroupMemberBookWRH::remove(UserWRH* u) {
-    for (size_t i = 0; i < v_.size(); ++i)
-        if (v_[i].user() == u) {
-            v_.erase(v_.begin() + i);
-            return true;
-        }
+    for (size_t i = 0; i < v_.size(); ++i) {
+        if (v_[i].user() != u) continue;
+        v_.erase(v_.begin() + i);
+        return true;
+    }
     return false;
 }
 
@@ -48,18 +49,22 @@ bool GroupMemberBookWRH::setRole(UserWRH* u, MemberRole r) {
     return true;
 }
 
-std::vector<UserWRH*> GroupMemberBookWRH::users() const {
-    std::vector<UserWRH*> r;
+vector<UserWRH*> GroupMemberBookWRH::users() const {
+    vector<UserWRH*> r;
     for (size_t i = 0; i < v_.size(); ++i)
         r.push_back(v_[i].user());
     return r;
 }
 
 void GroupMemberBookWRH::list() const {
-    if (v_.empty()) { std::cout << "    （群内暂无成员）\n"; return; }
+    if (v_.empty()) {
+        cout << "    （群内暂无成员）\n";
+        return;
+    }
     for (size_t i = 0; i < v_.size(); ++i) {
         const GroupMemberWRH& m = v_[i];
-        std::cout << "    " << (i + 1) << ". " << m.user()->nick()
-                  << "  —— " << roleName((int)m.role()) << "\n";
+        cout << "    " << (i + 1) << ". " << m.user()->nick()
+             << "（" << m.user()->mainNo() << "）  —— "
+             << roleName((int)m.role()) << "\n";
     }
 }

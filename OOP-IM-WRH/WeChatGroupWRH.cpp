@@ -1,48 +1,56 @@
-// 作者：魏荣赫 学号55250124 软件一班(552401班)  类名统一带姓名缩写 WRH
-// 文件：WeChatGroupWRH.cpp
+// ============================================================
+// 文件名: WeChatGroupWRH.cpp
+// 描述  : 微信群实现——仅群主特权、无管理员、无子群、模式切换
+// 作者  : 魏荣赫  学号 55250124  软件一班(552401班)
+// ============================================================
 #include "WeChatGroupWRH.h"
 #include "UserWRH.h"
 #include "QQGroupWRH.h"
 #include <iostream>
 
-// =====================================================================
-// WeChatGroupWRH.cpp  微信群实现
-// =====================================================================
+using namespace std;
 
-// 踢人权限：仅群主(特权账号)可踢，且不能踢群主自己
+// 踢人规则：只有群主能踢，且不能踢自己
 bool WeChatGroupWRH::canKick(const UserWRH* actor, const UserWRH* who) const {
     if (!actor || !who || actor == who) return false;
-    if (actor != owner()) return false;               // 仅群主
-    if (who == owner()) return false;                 // 不能踢群主
+    if (actor != owner()) return false;
+    if (who == owner()) return false;
     return members().isMember(const_cast<UserWRH*>(who));
 }
 
 // 微信群没有管理员制度
 bool WeChatGroupWRH::canSetAdmin(const UserWRH* actor, const UserWRH* who) const {
-    (void)actor; (void)who;
+    (void)actor;
+    (void)who;
     return false;
 }
 
-std::string WeChatGroupWRH::manageMode() const {
-    return "仅群主为特权账号：成员只能受邀/推荐加入；无管理员；仅群主可踢人；"
-           "不支持临时讨论组";
+string WeChatGroupWRH::manageMode() const {
+    return "仅群主为特权账号：成员只能受邀/推荐加入；无管理员；"
+           "仅群主可踢人；不支持临时讨论组";
 }
 
-// 微信群不支持建临时讨论组
-GroupWRH* WeChatGroupWRH::createSubGroup(int subNo, const std::string& subName,
-                                         const std::vector<UserWRH*>& picks) const {
-    (void)subNo; (void)subName; (void)picks;
-    std::cout << "    [提示] 微信群不支持创建临时讨论组(子群)。\n";
+// 微信群不支持临时讨论组
+GroupWRH* WeChatGroupWRH::createSubGroup(int subNo, const string& subName,
+                                         const vector<UserWRH*>& picks) const {
+    (void)subNo;
+    (void)subName;
+    (void)picks;
+    cout << "    [提示] 微信群不支持创建临时讨论组(子群)。\n";
     return nullptr;
 }
 
-// 切换管理模式：生成一个数据相同、但采用QQ管理规则的同群对象
+// 动态切换管理模式：新建同号同名、规则为QQ的群。
+// 成员原样搬过去，人数不变；原群主仍是群主，其他人一律普通成员。
 GroupWRH* WeChatGroupWRH::modeTwin() const {
-    QQGroupWRH* ng = new QQGroupWRH(gno_, name_, owner());
-    const std::vector<GroupMemberWRH>& v = members().all();
+    UserWRH* ow = owner();
+    if (!ow) return nullptr;
+
+    QQGroupWRH* ng = new QQGroupWRH(gno_, name_, ow);
+    const vector<GroupMemberWRH>& v = members().all();
     for (size_t i = 0; i < v.size(); ++i) {
         UserWRH* u = v[i].user();
-        if (u && u != owner())
+        if (u && u != ow)
             ng->members().add(u, ROLE_MEMBER);
     }
     return ng;

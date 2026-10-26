@@ -1,21 +1,22 @@
-// 作者：魏荣赫 学号55250124 软件一班(552401班)  类名统一带姓名缩写 WRH
-// 文件：FriendInfoWRH.h
+// ============================================================
+// 文件名: FriendInfoWRH.h
+// 描述  : 好友记录——好友本人 + 我给他的备注
+// 作者  : 魏荣赫  学号 55250124  软件一班(552401班)
+// ============================================================
 #ifndef FRIENDINFO_WRH_H
 #define FRIENDINFO_WRH_H
 
 #include <string>
 
-class UserWRH;   // 前向声明，避免与 UserWRH.h 循环包含
+class UserWRH;   // 前向声明：这里只存指针，不需要 UserWRH 的完整定义
 
-// =====================================================================
-// FriendInfoWRH  好友信息类
-// 一条好友记录：指向好友本人(UserWRH*) + 我给他的备注
-// 好友列表按"微X服务"划分，存放在对应服务的账号对象内(见 FriendBookWRH)
-// =====================================================================
+// 一条好友记录。
+// 备注是“我”给“他”的，所以 A 看 B 和 B 看 A 的备注可以不一样。
 class FriendInfoWRH {
 private:
-    UserWRH*   person_;   // 好友（对应的自然人/用户）
-    std::string remark_;  // 我对他的备注
+    UserWRH*    person_;   // 指向好友本人
+    std::string remark_;   // 我对他的备注，可以为空
+
 public:
     FriendInfoWRH(UserWRH* p = nullptr, const std::string& r = "")
         : person_(p), remark_(r) {}
@@ -26,6 +27,7 @@ public:
     const std::string& remark() const { return remark_; }
     void setRemark(const std::string& r) { remark_ = r; }
 
+    // 好友记录只按“人”比较，备注不参与
     bool operator==(const FriendInfoWRH& o) const { return person_ == o.person_; }
 };
 

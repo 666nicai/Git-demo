@@ -1,15 +1,20 @@
-// 作者：魏荣赫 学号55250124 软件一班(552401班)  类名统一带姓名缩写 WRH
-// 文件：UserWRH.cpp
+// ============================================================
+// 文件名: UserWRH.cpp
+// 描述  : 平台用户实现——开通/注销、登录联动、微信绑定、资料展示
+// 作者  : 魏荣赫  学号 55250124  软件一班(552401班)
+// ============================================================
 #include "UserWRH.h"
 #include "MicroAccountWRH.h"
 #include "QQAccountWRH.h"
-#include "WeiboAccountWRH.h"
 #include "WeChatAccountWRH.h"
+#include "WeiboAccountWRH.h"
 #include <iostream>
 
-UserWRH::UserWRH(const std::string& id, const std::string& nick,
+using namespace std;
+
+UserWRH::UserWRH(const string& id, const string& nick,
                  const MyDateWRH& birth, const MyDateWRH& apply,
-                 const std::string& city)
+                 const string& city)
     : BaseInfoWRH(nick, birth, apply, city), mainNo_(id) {}
 
 UserWRH::~UserWRH() {
@@ -17,9 +22,10 @@ UserWRH::~UserWRH() {
     accs_.clear();
 }
 
-std::set<MicroType> UserWRH::openedSet() const {
-    std::set<MicroType> s;
-    for (size_t i = 0; i < accs_.size(); ++i) s.insert(accs_[i]->type());
+set<MicroType> UserWRH::openedSet() const {
+    set<MicroType> s;
+    for (size_t i = 0; i < accs_.size(); ++i)
+        s.insert(accs_[i]->type());
     return s;
 }
 
@@ -35,69 +41,83 @@ MicroAccountWRH* UserWRH::account(MicroType t) const {
     return nullptr;
 }
 
-// 开通一个微X服务（可开通N个）。QQ/微博共享主号，微信分配独立号。
-MicroAccountWRH* UserWRH::openService(MicroType t) {
+// 开通一个服务。QQ/微博用共享主号；微信第一次开通时分配独立号。
+MicroAccountWRH* UserWRH::openService(MicroType t, bool quiet) {
     if (hasService(t)) {
-        std::cout << "    [提示] " << nick() << " 已开通 " << microName(t) << "，无需重复开通。\n";
+        if (!quiet)
+            cout << "    [提示] " << nick() << " 已开通 "
+                 << microName(t) << "，无需重复开通。\n";
         return account(t);
     }
+
     MicroAccountWRH* p = nullptr;
     if (t == MQQ) {
-        p = new QQAccountWRH(this, applyDate());       // 共享主号 mainNo_
+        p = new QQAccountWRH(this, applyDate());
     } else if (t == MWB) {
-        p = new WeiboAccountWRH(this, applyDate());    // 共享主号 mainNo_
+        p = new WeiboAccountWRH(this, applyDate());
     } else if (t == MWX) {
-        if (wxNo_.empty())
-            wxNo_ = "wx" + mainNo_;   // 微信独立ID：由平台自动分配(与QQ号不同位)
+        if (wxNo_.empty()) wxNo_ = "wx" + mainNo_;   // 微信独立号：wx + 主号
         WeChatAccountWRH* w = new WeChatAccountWRH(this, applyDate());
         w->setWxNo(wxNo_);
         p = w;
     }
+
     if (p) {
         accs_.push_back(p);
-        std::cout << "    [开通] " << nick() << " 开通 " << microName(t)
-                  << " 成功，号码：" << p->svcNo() << "\n";
+        if (!quiet)
+            cout << "    [开通] " << nick() << " 开通 " << microName(t)
+                 << " 成功，号码：" << p->svcNo() << "\n";
     }
     return p;
 }
 
+// 注销服务：除了删自己的账号，还要把“别人好友列表里的我”一并删掉，
+// 否则对方会留下一个点不开的单向好友，数据就不一致了。
 void UserWRH::closeService(MicroType t) {
     for (size_t i = 0; i < accs_.size(); ++i) {
-        if (accs_[i]->type() == t) {
-            delete accs_[i];
-            accs_.erase(accs_.begin() + i);
-            std::cout << "    [注销] " << nick() << " 已注销 " << microName(t) << " 服务。\n";
-            return;
+        if (accs_[i]->type() != t) continue;
+
+        MicroAccountWRH* acc = accs_[i];
+        const vector<FriendInfoWRH>& fs = acc->friends().all();
+        int removed = 0;
+        for (size_t j = 0; j < fs.size(); ++j) {
+            MicroAccountWRH* other = fs[j].person()->account(t);
+            if (!other) continue;
+            other->friends().remove(this);
+            ++removed;
         }
+
+        delete acc;
+        accs_.erase(accs_.begin() + i);
+        cout << "    [注销] " << nick() << " 已注销 " << microName(t)
+             << " 服务（同时从 " << removed << " 位好友的列表中移除）。\n";
+        return;
     }
-    std::cout << "    [提示] 未开通 " << microName(t) << "，无法注销。\n";
+    cout << "    [提示] 未开通 " << microName(t) << "，无法注销。\n";
 }
 
-// 一个服务登录 → 其它已开通服务自动登录
+// 一个服务登录 → 该用户所有已开通服务全部登录
 bool UserWRH::login(MicroType t) {
-    MicroAccountWRH* one = account(t);
-    if (!one) {
-        std::cout << "    [提示] " << nick() << " 未开通 " << microName(t) << "，无法登录。\n";
+    if (!account(t)) {
+        cout << "    [提示] " << nick() << " 未开通 "
+             << microName(t) << "，无法登录。\n";
         return false;
     }
-    for (size_t i = 0; i < accs_.size(); ++i) {
-        accs_[i]->setLogged(true);   // 全部已开通服务自动登录
-    }
-    std::cout << "    [登录] " << nick() << " 在 [" << microName(t) << "] 登录，"
-              << "其开通的其它服务(";
-    bool first = true;
+
     for (size_t i = 0; i < accs_.size(); ++i)
-        if (accs_[i]->type() != t) {
-            if (!first) std::cout << "、";
-            first = false;
-            std::cout << microName(accs_[i]->type());
-        }
-    std::cout << ") 已自动登录。\n";
+        accs_[i]->setLogged(true);
+
+    cout << "    [登录] " << nick() << " 在 [" << microName(t)
+         << "] 登录，已开通的 ";
+    for (size_t i = 0; i < accs_.size(); ++i)
+        cout << (i ? "、" : "") << microName(accs_[i]->type());
+    cout << " 全部自动登录。\n";
     return true;
 }
 
 void UserWRH::logoutAll() {
-    for (size_t i = 0; i < accs_.size(); ++i) accs_[i]->setLogged(false);
+    for (size_t i = 0; i < accs_.size(); ++i)
+        accs_[i]->setLogged(false);
 }
 
 bool UserWRH::anyLogged() const {
@@ -110,32 +130,40 @@ WeChatAccountWRH* UserWRH::wxAccount() const {
     return dynamic_cast<WeChatAccountWRH*>(account(MWX));
 }
 
-void UserWRH::bindWxToQQ(const std::string& qq) {
+void UserWRH::bindWxToQQ(const string& qq, bool quiet) {
     WeChatAccountWRH* w = wxAccount();
-    if (!w) { std::cout << "    [提示] 未开通微信，无法绑定。\n"; return; }
-    w->bindQQ(qq);
-    std::cout << "    [绑定] 微信号 " << w->wxNo() << " 已绑定QQ " << qq << "\n";
-}
-
-// 基本信息展示（复用抽象基础类的 show 成员）
-void UserWRH::showProfile() const {
-    std::cout << "  ---------- 用户资料 ----------\n";
-    BaseInfoWRH::show();                     // 昵称/出生/所在地/T龄
-    std::cout << "    |-- 主号(QQ/微博共享)： " << mainNo_ << "\n";
-    if (!wxNo_.empty())
-        std::cout << "    |-- 微信号(微信独立ID)：" << wxNo_ << "\n";
-    std::cout << "    |-- 已开通服务(" << openedCount() << ")：";
-    if (accs_.empty()) std::cout << "（无）";
-    for (size_t i = 0; i < accs_.size(); ++i) {
-        if (i) std::cout << "、";
-        std::cout << microName(accs_[i]->type()) << (accs_[i]->logged() ? "[在线]" : "[离线]");
+    if (!w) {
+        if (!quiet) cout << "    [提示] 未开通微信，无法绑定。\n";
+        return;
     }
-    std::cout << "\n";
+    w->bindQQ(qq);
+    if (!quiet)
+        cout << "    [绑定] 微信号 " << w->wxNo()
+             << " 已绑定QQ " << qq << "\n";
 }
 
-// 每个开通服务账号的详情（运行时多态：QQ/微博/微信各自的展示）
+// 基本资料：复用 BaseInfoWRH::show()，再补主号、微信号、开通状态
+void UserWRH::showProfile() const {
+    cout << "  ---------- 用户资料 ----------\n";
+    BaseInfoWRH::show();
+    cout << "    |-- 主号(QQ/微博共享)： " << mainNo_ << "\n";
+    if (!wxNo_.empty())
+        cout << "    |-- 微信号(微信独立ID)：" << wxNo_ << "\n";
+
+    cout << "    |-- 已开通服务(" << openedCount() << ")：";
+    if (accs_.empty()) cout << "（无）";
+    for (size_t i = 0; i < accs_.size(); ++i)
+        cout << (i ? "、" : "") << microName(accs_[i]->type())
+             << (accs_[i]->logged() ? "[在线]" : "[离线]");
+    cout << "\n";
+}
+
+// 每个账号的详情：这里通过基类指针调用 show()，运行时会走到各自的版本
 void UserWRH::showOpened() const {
-    if (accs_.empty()) { std::cout << "    （未开通任何服务）\n"; return; }
+    if (accs_.empty()) {
+        cout << "    （未开通任何服务）\n";
+        return;
+    }
     for (size_t i = 0; i < accs_.size(); ++i)
         accs_[i]->show();
 }

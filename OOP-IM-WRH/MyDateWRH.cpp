@@ -1,10 +1,29 @@
-// 作者：魏荣赫 学号55250124 软件一班(552401班)  类名统一带姓名缩写 WRH
-// 文件：MyDateWRH.cpp
+// ============================================================
+// 文件名: MyDateWRH.cpp
+// 描述  : 日期类实现——公历天数换算与日期合法性检查
+// 作者  : 魏荣赫  学号 55250124  软件一班(552401班)
+// ============================================================
 #include "MyDateWRH.h"
 #include <cstdio>
 #include <ctime>
 
-// 计算自 epoch 起的天数（Howard Hinnant civil 算法）
+using namespace std;
+
+// 判断闰年：四年一闰、百年不闰、四百年再闰
+static bool isLeap(int y) {
+    return (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+}
+
+// 某年某月有几天；调用前保证 m 在 1~12
+static int daysInMonth(int y, int m) {
+    static const int tab[13] = {0, 31, 28, 31, 30, 31, 30,
+                                31, 31, 30, 31, 30, 31};
+    if (m == 2 && isLeap(y)) return 29;
+    return tab[m];
+}
+
+// Howard Hinnant 的 civil 算法：把年月日换成距 1970-01-01 的天数。
+// 这样两个日期相减就是普通整数减法，不用自己逐月数天数。
 static long daysFromCivil(int y, unsigned m, unsigned d) {
     y -= m <= 2;
     const int era = (y >= 0 ? y : y - 399) / 400;
@@ -15,30 +34,33 @@ static long daysFromCivil(int y, unsigned m, unsigned d) {
 }
 
 MyDateWRH MyDateWRH::today() {
-    std::time_t t = std::time(nullptr);
-    std::tm tm;
+    time_t t = time(nullptr);
+    tm now;
 #if defined(_WIN32)
-    localtime_s(&tm, &t);
+    localtime_s(&now, &t);
 #else
-    localtime_r(&t, &tm);
+    localtime_r(&t, &now);
 #endif
-    return MyDateWRH(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+    return MyDateWRH(now.tm_year + 1900, now.tm_mon + 1, now.tm_mday);
 }
 
 long MyDateWRH::days() const {
     return daysFromCivil(y, m, d);
 }
 
-std::string MyDateWRH::str() const {
+string MyDateWRH::str() const {
     char buf[16];
-    std::snprintf(buf, sizeof buf, "%04d-%02d-%02d", y, m, d);
-    return std::string(buf);
+    snprintf(buf, sizeof buf, "%04d-%02d-%02d", y, m, d);
+    return string(buf);
 }
 
-bool MyDateWRH::parse(const std::string& s) {
+bool MyDateWRH::parse(const string& s) {
     int yy, mm, dd;
-    if (std::sscanf(s.c_str(), "%d-%d-%d", &yy, &mm, &dd) != 3) return false;
-    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return false;
-    y = yy; m = mm; d = dd;
+    if (sscanf(s.c_str(), "%d-%d-%d", &yy, &mm, &dd) != 3) return false;
+    if (yy < 1 || mm < 1 || mm > 12) return false;
+    if (dd < 1 || dd > daysInMonth(yy, mm)) return false;   // 2月、大小月都管住
+    y = yy;
+    m = mm;
+    d = dd;
     return true;
 }

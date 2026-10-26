@@ -1,32 +1,31 @@
+// ============================================================
+// 文件名: ConstWRH.h
+// 描述  : 全局枚举与公共小工具——服务类型、成员角色、名字转换
+// 作者  : 魏荣赫  学号 55250124  软件一班(552401班)
+// ============================================================
 #ifndef CONST_WRH_H
 #define CONST_WRH_H
 
-#include <string>
 #include <set>
-#include <sstream>
+#include <string>
 
-// =====================================================================
-// ConstWRH.h  全局常量与公共小工具（非类，仅常量/内联函数）
-// 工程：模拟即时通信系统（腾讯立体社交平台）
-// 作者：魏荣赫 学号55250124 软件一班(552401班)  类名统一带姓名缩写 WRH
-// =====================================================================
-
-// ---- 微X 服务类型（可继续扩展：微商、微唱、微走、微笑…）----
+// ==================== 微X 服务类型 ====================
+// 以后要加“微商 / 微唱 / 微走”，在这里加一项，再把 MCOUNT 往后挪即可。
 enum MicroType {
-    MQQ = 0,       // QQ
-    MWB = 1,       // 微博（与QQ共享ID）
-    MWX = 2,       // 微信（独立ID，可绑定QQ）
-    MCOUNT = 3
+    MQQ    = 0,   // QQ：与微博共享主号
+    MWB    = 1,   // 微博：与QQ共享主号
+    MWX    = 2,   // 微信：独立号码，可以绑定QQ
+    MCOUNT = 3    // 服务总数；同时当“无效值”用，方便循环和判断
 };
 
-// ---- 群成员角色 ----
+// ==================== 群成员角色 ====================
 enum MemberRole {
-    ROLE_OWNER = 2,   // 群主
-    ROLE_ADMIN = 1,   // 管理员（QQ群有，微信群无）
-    ROLE_MEMBER = 0   // 普通成员
+    ROLE_OWNER  = 2,   // 群主
+    ROLE_ADMIN  = 1,   // 管理员（只有QQ群有）
+    ROLE_MEMBER = 0    // 普通成员
 };
 
-// ---- 微X 名字 ----
+// 枚举 -> 中文名
 inline const char* microName(MicroType t) {
     switch (t) {
         case MQQ: return "QQ";
@@ -36,7 +35,7 @@ inline const char* microName(MicroType t) {
     }
 }
 
-// ---- 角色名字 ----
+// 角色 -> 中文名
 inline const char* roleName(int r) {
     switch (r) {
         case ROLE_OWNER: return "群主";
@@ -45,14 +44,14 @@ inline const char* roleName(int r) {
     }
 }
 
-// ---- 开通集合 -> 可读串（例：QQ、微博、微信）----
+// 把“已开通服务集合”拼成一行中文，例如：QQ、微博、微信
 inline std::string openedToStr(const std::set<MicroType>& s) {
     std::string r;
-    for (int i = 0; i < MCOUNT; ++i)
-        if (s.count((MicroType)i)) {
-            if (!r.empty()) r += "、";
-            r += microName((MicroType)i);
-        }
+    for (int i = 0; i < MCOUNT; ++i) {
+        if (!s.count((MicroType)i)) continue;
+        if (!r.empty()) r += "、";
+        r += microName((MicroType)i);
+    }
     if (r.empty()) r = "（未开通）";
     return r;
 }

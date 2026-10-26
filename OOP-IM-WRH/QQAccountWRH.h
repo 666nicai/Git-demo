@@ -1,5 +1,8 @@
-// 作者：魏荣赫 学号55250124 软件一班(552401班)  类名统一带姓名缩写 WRH
-// 文件：QQAccountWRH.h
+// ============================================================
+// 文件名: QQAccountWRH.h
+// 描述  : QQ账号类——与微博共享平台主号
+// 作者  : 魏荣赫  学号 55250124  软件一班(552401班)
+// ============================================================
 #ifndef QQACCOUNT_WRH_H
 #define QQACCOUNT_WRH_H
 
@@ -7,20 +10,16 @@
 
 class UserWRH;
 
-// =====================================================================
-// QQAccountWRH  QQ账号信息类（微X账号继承族之一）
-// QQ 与微博共享ID：QQ号码 = 平台主号
-// =====================================================================
+// QQ 与微博共享ID，所以 QQ 号码直接取平台主号。
 class QQAccountWRH : public MicroAccountWRH {
 public:
     QQAccountWRH(UserWRH* owner, const MyDateWRH& apply)
         : MicroAccountWRH(owner, MQQ, apply) {}
 
-    virtual const char* svcName() const override { return "QQ"; }
-    virtual bool isSharedID() const override { return true; }
-    virtual bool isWeChat() const override { return false; }
-    // QQ号码：直接返回平台主号（共享）
-    virtual std::string svcNo() const override;
+    const char* svcName()    const override { return "QQ"; }
+    bool        isSharedID() const override { return true; }
+    bool        isWeChat()   const override { return false; }
+    std::string svcNo()      const override;   // 返回平台主号
 };
 
 #endif

@@ -1,27 +1,27 @@
-// 作者：魏荣赫 学号55250124 软件一班(552401班)  类名统一带姓名缩写 WRH
-// 文件：FriendBookWRH.cpp
+// ============================================================
+// 文件名: FriendBookWRH.cpp
+// 描述  : 好友容器实现——增删改查、展示、共同好友
+// 作者  : 魏荣赫  学号 55250124  软件一班(552401班)
+// ============================================================
 #include "FriendBookWRH.h"
 #include "UserWRH.h"
-#include <algorithm>
 #include <iostream>
 
-// =====================================================================
-// FriendBookWRH.cpp  好友信息容器类实现
-// =====================================================================
+using namespace std;
 
-bool FriendBookWRH::add(UserWRH* person, const std::string& remark) {
+bool FriendBookWRH::add(UserWRH* person, const string& remark) {
     if (!person) return false;
-    if (has(person)) return false;          // 已存在则不能重复添加
+    if (has(person)) return false;          // 已经在列表里，不重复加
     v_.push_back(FriendInfoWRH(person, remark));
     return true;
 }
 
 bool FriendBookWRH::remove(UserWRH* person) {
-    for (size_t i = 0; i < v_.size(); ++i)
-        if (v_[i].person() == person) {
-            v_.erase(v_.begin() + i);
-            return true;
-        }
+    for (size_t i = 0; i < v_.size(); ++i) {
+        if (v_[i].person() != person) continue;
+        v_.erase(v_.begin() + i);
+        return true;
+    }
     return false;
 }
 
@@ -37,32 +37,41 @@ FriendInfoWRH* FriendBookWRH::find(UserWRH* person) {
     return nullptr;
 }
 
-bool FriendBookWRH::setRemark(UserWRH* person, const std::string& r) {
+bool FriendBookWRH::setRemark(UserWRH* person, const string& r) {
     FriendInfoWRH* p = find(person);
     if (!p) return false;
     p->setRemark(r);
     return true;
 }
 
-// 列好友：由于好友记录只保存指针，展示需要 UserWRH 的完整定义
 void FriendBookWRH::list() const {
+    if (v_.empty()) {
+        cout << "    （暂无好友）\n";
+        return;
+    }
     for (size_t i = 0; i < v_.size(); ++i) {
         const FriendInfoWRH& f = v_[i];
-        std::cout << "  " << (i + 1) << ". 昵称[" << f.person()->nick()
-                  << "] 备注[" << f.remark() << "]\n";
+        cout << "    " << (i + 1) << ". 昵称[" << f.person()->nick()
+             << "] 主号[" << f.person()->mainNo()
+             << "] 备注[" << f.remark() << "]\n";
     }
 }
 
 void FriendBookWRH::listSimple() const {
-    for (size_t i = 0; i < v_.size(); ++i) {
-        std::cout << "  " << (i + 1) << ". " << v_[i].person()->nick() << "\n";
+    if (v_.empty()) {
+        cout << "（暂无好友）\n";
+        return;
     }
+    for (size_t i = 0; i < v_.size(); ++i)
+        cout << (i ? "、" : "") << v_[i].person()->nick();
+    cout << "\n";
 }
 
-std::vector<UserWRH*> FriendBookWRH::commonWith(const FriendBookWRH& o) const {
-    std::vector<UserWRH*> r;
+// 共同好友：遍历自己的列表，看对方列表里有没有同一个人
+vector<UserWRH*> FriendBookWRH::commonWith(const FriendBookWRH& o) const {
+    vector<UserWRH*> r;
     for (size_t i = 0; i < v_.size(); ++i)
-        if (o.has(v_[i].person()))        // 对方也有此人 -> 共同好友
+        if (o.has(v_[i].person()))
             r.push_back(v_[i].person());
     return r;
 }
