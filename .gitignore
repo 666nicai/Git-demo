@@ -16,6 +16,7 @@ dist/
 
 # 课程设计运行期数据（程序每次退出时自动改写）
 OOP-IM-WRH/platform_data.txt
+OOP-IM-WRH/构建/platform_data.txt
 
 # VSCode Run Code 插件生成的临时可执行文件
 /keshe/C(1)/C(1)/C/run code/run
